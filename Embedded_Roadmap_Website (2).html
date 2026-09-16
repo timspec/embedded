@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Embedded Systems &amp; Firmware Engineering — 8-Month Build Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --radius:3px;
+  --sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  /* fixed "instrument panel" colors — always dark, regardless of theme */
+  --panel:#141B16;
+  --panel-elevated:#1B241E;
+  --panel-hover:#212B24;
+  --panel-active:#1E2921;
+  --panel-input:#1D2620;
+  --panel-line:#2A362E;
+  --panel-text:#EAEFEA;
+  --panel-text-soft:#C7D2C9;
+  --panel-text-faint:#7C8A80;
+  --panel-text-dim:#5E6C63;
+  --panel-accent:#8FBF9F;
+
+  /* fixed accent chips — same in both themes so meaning stays legible */
+  --badge-accent:#1F6F4A;
+
+  /* fixed "pinned note" callout — always warm/light, pops in both themes */
+  --capstone-bg:#F6E9D7;
+  --capstone-border:#E4C494;
+  --capstone-accent:#BD7A2C;
+  --capstone-text:#4A371C;
+  --capstone-label:#8C5A1E;
+
+  /* theme-reactive surface colors — light defaults */
+  --paper:#F1F4F0;
+  --paper-raised:#FFFFFF;
+  --ink:#16221B;
+  --ink-soft:#48544B;
+  --ink-faint:#657266;
+  --line:#CBD4C7;
+  --line-soft:#DEE5DB;
+  --pcb:#1E6E4A;
+  --pcb-dark:#164F36;
+  --pcb-tint:#E4F0E9;
+  --copper:#A5661F;
+  --copper-tint:#F6E9D7;
+  --badge-default:#16221B;
+  --grid-rgb:30,110,74;
+  --grid-alpha:0.045;
+  --shadow-rgb:22,34,27;
+}
+
+[data-theme="dark"]{
+  --paper:#121712;
+  --paper-raised:#1A211B;
+  --ink:#E9EFE7;
+  --ink-soft:#B4BFB2;
+  --ink-faint:#8B968A;
+  --line:#333F35;
+  --line-soft:#262F27;
+  --pcb:#49C98A;
+  --pcb-dark:#37A874;
+  --pcb-tint:#16261D;
+  --copper:#E6A84F;
+  --copper-tint:#2C2213;
+  --badge-default:#0B0F0B;
+  --grid-rgb:73,201,138;
+  --grid-alpha:0.05;
+  --shadow-rgb:0,0,0;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  font-family:var(--sans);
+  color:var(--ink);
+  background-color:var(--paper);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(var(--grid-rgb), var(--grid-alpha)) 0px, rgba(var(--grid-rgb), var(--grid-alpha)) 1px, transparent 1px, transparent 32px),
+    repeating-linear-gradient(90deg, rgba(var(--grid-rgb), var(--grid-alpha)) 0px, rgba(var(--grid-rgb), var(--grid-alpha)) 1px, transparent 1px, transparent 32px);
+  -webkit-font-smoothing:antialiased;
+  transition:background-color .18s ease, color .18s ease;
+}
+a{color:inherit;}
+::selection{background:var(--pcb);color:#fff;}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+svg{display:block;width:1em;height:1em;flex-shrink:0;}
+
+a:focus-visible, button:focus-visible, input:focus-visible,
+[tabindex]:focus-visible, .day-head:focus-visible{
+  outline:2px solid var(--pcb);outline-offset:2px;border-radius:2px;
+}
+
+/* ---------- Layout shell ---------- */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:280px;flex:none;
+  background:var(--panel);
+  color:var(--panel-text);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  display:flex;flex-direction:column;
+  z-index:30;
+}
+.sidebar::-webkit-scrollbar{width:8px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--panel-line);border-radius:4px;}
+
+.brand{
+  padding:20px 16px 16px 20px;
+  border-bottom:1px solid var(--panel-line);
+  display:flex;align-items:center;gap:11px;
+}
+.brand-mark{width:30px;height:30px;flex:none;}
+.brand-text{line-height:1.15;min-width:0;}
+.brand-text .l1{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;color:var(--panel-accent);text-transform:uppercase;}
+.brand-text .l2{font-size:14.5px;font-weight:600;color:#fff;margin-top:2px;}
+
+.theme-toggle{
+  margin-left:auto;flex:none;width:32px;height:32px;border-radius:var(--radius);
+  background:var(--panel-input);border:1px solid var(--panel-line);color:var(--panel-text-soft);
+  display:flex;align-items:center;justify-content:center;transition:border-color .12s ease, color .12s ease;
+}
+.theme-toggle:hover{border-color:var(--pcb);color:#fff;}
+.theme-toggle svg{width:16px;height:16px;}
+.theme-toggle .icon-moon{display:block;}
+.theme-toggle .icon-sun{display:none;}
+[data-theme="dark"] .theme-toggle .icon-moon{display:none;}
+[data-theme="dark"] .theme-toggle .icon-sun{display:block;}
+
+.search-wrap{padding:14px 16px;border-bottom:1px solid var(--panel-line);position:relative;}
+.search-input{
+  width:100%;background:var(--panel-input);border:1px solid var(--panel-line);color:var(--panel-text);
+  padding:9px 10px 9px 30px;border-radius:var(--radius);font-size:13px;
+  outline:none;
+}
+.search-input::placeholder{color:var(--panel-text-dim);}
+.search-input:focus-visible{border-color:var(--pcb);outline:none;}
+.search-icon{position:absolute;left:26px;top:23px;width:14px;height:14px;color:var(--panel-text-dim);pointer-events:none;}
+.search-results{
+  position:absolute;left:16px;right:16px;top:52px;background:var(--panel-elevated);border:1px solid var(--panel-line);
+  border-radius:var(--radius);max-height:320px;overflow-y:auto;display:none;box-shadow:0 12px 28px rgba(0,0,0,.35);
+}
+.search-results.show{display:block;}
+.search-results .sr-item{padding:9px 12px;border-bottom:1px solid var(--panel-line);font-size:12.5px;cursor:pointer;}
+.search-results .sr-item:last-child{border-bottom:none;}
+.search-results .sr-item:hover,.search-results .sr-item.highlighted{background:var(--panel-hover);}
+.search-results .sr-tag{font-family:var(--mono);font-size:10px;color:var(--panel-accent);letter-spacing:.05em;}
+.search-results .sr-title{color:var(--panel-text);margin-top:2px;}
+.search-empty{padding:12px;font-size:12.5px;color:var(--panel-text-dim);}
+
+nav.navlist{padding:10px 10px 14px;flex:1;}
+.nav-section-label{
+  font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--panel-text-dim);
+  padding:12px 10px 6px;text-transform:uppercase;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--radius);
+  font-size:13.5px;color:var(--panel-text-soft);text-decoration:none;
+  border-left:2px solid transparent;
+  margin-bottom:2px;
+}
+.nav-item:hover{background:var(--panel-hover);color:#fff;}
+.nav-item.active{background:var(--panel-active);color:#fff;border-left-color:var(--pcb);}
+.nav-num{font-family:var(--mono);font-size:11px;color:var(--panel-text-faint);flex:none;width:26px;}
+.nav-item.active .nav-num{color:var(--panel-accent);}
+.nav-label{flex:1;line-height:1.3;}
+.nav-progress{font-family:var(--mono);font-size:10px;color:var(--panel-text-faint);flex:none;}
+.nav-item.active .nav-progress{color:var(--panel-accent);}
+
+.sidebar-foot{
+  padding:14px 20px 18px;border-top:1px solid var(--panel-line);
+  font-family:var(--mono);font-size:10.5px;color:var(--panel-text-dim);line-height:1.6;
+}
+.sidebar-foot b{color:var(--panel-accent);font-weight:500;}
+.reset-btn{
+  margin-top:10px;background:transparent;border:1px solid var(--panel-line);color:var(--panel-text-soft);
+  padding:6px 10px;border-radius:var(--radius);font-family:var(--mono);font-size:10.5px;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .12s ease, color .12s ease;
+}
+.reset-btn:hover{border-color:#C0574A;color:#fff;}
+.reset-btn svg{width:12px;height:12px;}
+
+.io-row{display:flex;gap:8px;margin-top:12px;}
+.io-btn{
+  flex:1;background:transparent;border:1px solid var(--panel-line);color:var(--panel-text-soft);
+  padding:6px 8px;border-radius:var(--radius);font-family:var(--mono);font-size:10.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  transition:border-color .12s ease, color .12s ease;
+}
+.io-btn:hover{border-color:var(--pcb);color:#fff;}
+.io-btn svg{width:12px;height:12px;}
+
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(12px);
+  background:var(--panel);color:var(--panel-text);border:1px solid var(--panel-line);
+  padding:11px 18px;border-radius:var(--radius);font-size:13px;
+  box-shadow:0 14px 30px rgba(0,0,0,.28);z-index:50;
+  opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;
+  max-width:88vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:#C0574A;}
+
+/* ---------- Main ---------- */
+.main{flex:1;min-width:0;}
+.topbar{
+  display:none;position:sticky;top:0;z-index:20;background:var(--panel);color:#fff;
+  padding:12px 16px;align-items:center;justify-content:space-between;gap:10px;
+}
+.topbar-btn{background:transparent;border:1px solid var(--panel-line);color:#fff;padding:7px 10px;border-radius:var(--radius);
+  display:flex;align-items:center;gap:7px;font-size:12.5px;}
+.topbar-btn svg{width:15px;height:15px;}
+.topbar-title{font-family:var(--mono);font-size:12px;color:var(--panel-text-soft);}
+.view{padding:44px 56px 90px;max-width:1180px;}
+.view.hidden{display:none;}
+
+/* ---------- Overview hero ---------- */
+.hero{margin-bottom:38px;}
+.hero-eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--pcb);
+  display:flex;align-items:center;gap:8px;margin-bottom:16px;
+}
+.hero-eyebrow .dot{width:6px;height:6px;background:var(--copper);border-radius:50%;display:inline-block;}
+.hero h1{
+  font-size:44px;line-height:1.12;font-weight:700;letter-spacing:-0.015em;margin:0 0 16px;
+  max-width:820px;
+}
+.hero p.lead{font-size:16.5px;line-height:1.6;color:var(--ink-soft);max-width:620px;margin:0 0 30px;}
+
+.spec-table{border:1px solid var(--line);background:var(--paper-raised);border-radius:var(--radius);overflow:hidden;max-width:900px;}
+.spec-title{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--panel);color:var(--panel-text);padding:8px 14px;
+}
+.spec-grid{display:grid;grid-template-columns:repeat(5,1fr);}
+.spec-cell{padding:16px 14px;border-right:1px solid var(--line-soft);border-top:1px solid var(--line-soft);}
+.spec-cell:nth-child(5n){border-right:none;}
+.spec-val{font-family:var(--mono);font-size:24px;font-weight:600;color:var(--pcb-dark);line-height:1;}
+[data-theme="dark"] .spec-val{color:var(--pcb);}
+.spec-unit{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-left:3px;}
+.spec-label{font-size:11.5px;color:var(--ink-soft);margin-top:7px;}
+
+/* ---------- Section heading ---------- */
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin:56px 0 18px;gap:20px;flex-wrap:wrap;}
+.section-head h2{font-size:22px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+.section-head .sh-note{font-size:13px;color:var(--ink-faint);}
+
+/* ---------- Phase grid (overview) ---------- */
+.phase-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.phase-tile{
+  background:var(--paper-raised);border:1px solid var(--line);border-left:3px solid var(--pcb);
+  border-radius:var(--radius);padding:16px 16px 14px;cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.phase-tile:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(var(--shadow-rgb),0.12);}
+.phase-tile .pt-num{font-family:var(--mono);font-size:11px;color:var(--copper);letter-spacing:.05em;}
+.phase-tile .pt-title{font-size:14.5px;font-weight:600;margin:6px 0 8px;line-height:1.3;min-height:38px;}
+.phase-tile .pt-meta{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);}
+
+/* ---------- Skills checklist ---------- */
+.skill-list{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;max-width:980px;}
+.skill-item{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink-soft);line-height:1.5;padding:6px 0;border-bottom:1px dashed var(--line-soft);}
+.skill-item svg{width:17px;height:17px;flex:none;margin-top:2px;color:var(--pcb);}
+
+/* ---------- Phase view ---------- */
+.phase-head{margin-bottom:8px;}
+.phase-head .ph-tag{font-family:var(--mono);font-size:12px;color:var(--copper);letter-spacing:.06em;}
+.phase-head h1{font-size:32px;margin:8px 0 12px;line-height:1.18;max-width:760px;}
+.phase-head .ph-goal{font-size:15px;color:var(--ink-soft);line-height:1.6;max-width:720px;margin:0 0 18px;}
+
+.phase-progress{display:flex;align-items:center;gap:14px;margin-bottom:26px;max-width:640px;flex-wrap:wrap;}
+.phase-progress .pp-track{flex:1;min-width:160px;height:7px;background:var(--line-soft);border-radius:6px;overflow:hidden;}
+.phase-progress .pp-fill{height:100%;background:linear-gradient(90deg,var(--pcb),var(--pcb-dark));width:0%;transition:width .25s ease;}
+.phase-progress .pp-text{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+
+.capstone-box{
+  background:var(--capstone-bg);border:1px solid var(--capstone-border);border-left:3px solid var(--capstone-accent);
+  border-radius:var(--radius);padding:16px 18px;margin-bottom:30px;max-width:900px;
+}
+.capstone-box .cb-label{font-family:var(--mono);font-size:11px;letter-spacing:.07em;color:var(--capstone-label);text-transform:uppercase;margin-bottom:6px;}
+.capstone-box .cb-text{font-size:14.5px;color:var(--capstone-text);line-height:1.55;}
+
+.week-block{margin-bottom:30px;}
+.week-label{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.07em;color:var(--ink-faint);
+  padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:2px;text-transform:uppercase;
+}
+
+.day-row{border-bottom:1px solid var(--line-soft);background:var(--paper-raised);}
+.day-row.revision{background:var(--pcb-tint);}
+.day-head{display:flex;align-items:center;gap:14px;padding:13px 14px;cursor:pointer;}
+.day-badge{
+  font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;background:var(--badge-default);
+  padding:4px 8px;border-radius:var(--radius);flex:none;min-width:34px;text-align:center;
+}
+.day-row.revision .day-badge{background:var(--badge-accent);}
+.day-week-tag{font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);flex:none;width:44px;}
+.day-topic{flex:1;font-size:14.5px;font-weight:600;min-width:0;}
+.day-review-tag{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--pcb-dark);
+  background:var(--paper-raised);border:1px solid var(--pcb);padding:2px 6px;border-radius:2px;flex:none;
+}
+[data-theme="dark"] .day-review-tag{color:var(--pcb);}
+.day-hours{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);flex:none;}
+
+.day-check{flex:none;display:flex;align-items:center;}
+.day-check input[type="checkbox"]{
+  appearance:none;-webkit-appearance:none;margin:0;
+  width:19px;height:19px;border:1.6px solid var(--line);border-radius:4px;
+  background:var(--paper-raised);cursor:pointer;position:relative;flex:none;
+  transition:background .12s ease, border-color .12s ease;
+}
+.day-check input[type="checkbox"]:hover{border-color:var(--pcb);}
+.day-check input[type="checkbox"]:checked{background:var(--pcb);border-color:var(--pcb);}
+.day-check input[type="checkbox"]:checked::after{
+  content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;
+  border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);
+}
+.day-chevron{flex:none;width:16px;height:16px;color:var(--ink-faint);transition:transform .15s ease;}
+.day-chevron svg{width:100%;height:100%;}
+.day-row.open .day-chevron{transform:rotate(90deg);}
+
+.day-body{display:none;padding:0 14px 20px 62px;}
+.day-row.open .day-body{display:block;}
+.day-tasks{font-size:14px;color:var(--ink-soft);line-height:1.65;max-width:760px;margin-bottom:14px;}
+.res-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.res-pill{
+  display:inline-flex;align-items:center;gap:7px;background:var(--paper);border:1px solid var(--line);
+  padding:7px 11px;border-radius:20px;font-size:12.5px;text-decoration:none;color:var(--ink);
+  transition:border-color .12s ease, background .12s ease;
+}
+.res-pill:hover,.res-pill:focus-visible{border-color:var(--pcb);background:var(--pcb-tint);}
+.res-pill .res-kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;color:var(--ink-faint);text-transform:uppercase;}
+.res-pill svg{flex:none;width:13px;height:13px;color:var(--ink-soft);}
+.practice-box{
+  background:var(--paper);border:1px dashed var(--line);border-radius:var(--radius);
+  padding:11px 14px;font-size:13.5px;color:var(--ink-soft);max-width:760px;line-height:1.55;
+}
+.practice-box b{color:var(--ink);font-weight:600;}
+
+/* ---------- Showcase view ---------- */
+.sc-block{margin-bottom:34px;}
+.sc-block h3{font-size:17px;font-weight:600;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--ink);}
+.sc-item{display:flex;gap:16px;padding:13px 0;border-bottom:1px solid var(--line-soft);}
+.sc-item .sc-idx{font-family:var(--mono);font-size:12px;color:var(--copper);flex:none;width:22px;padding-top:2px;}
+.sc-item .sc-body{flex:1;min-width:0;}
+.sc-item .sc-label{font-size:14.5px;font-weight:600;margin-bottom:4px;}
+.sc-item .sc-detail{font-size:13.5px;color:var(--ink-soft);line-height:1.55;}
+.sc-item .sc-link{margin-top:7px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--pcb-dark);text-decoration:none;border-bottom:1px solid var(--pcb);}
+[data-theme="dark"] .sc-item .sc-link{color:var(--pcb);}
+.sc-item .sc-link svg{width:12px;height:12px;}
+
+/* ---------- Progress bar on overview ---------- */
+.progress-wrap{display:flex;align-items:center;gap:16px;margin-top:26px;flex-wrap:wrap;}
+.progress-bar-track{flex:1;max-width:420px;height:8px;background:var(--line-soft);border-radius:6px;overflow:hidden;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--pcb),var(--pcb-dark));width:0%;transition:width .25s ease;}
+.progress-text{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+
+/* ---------- Footer nav (prev/next phase) ---------- */
+.phase-nav{display:flex;justify-content:space-between;margin-top:40px;padding-top:24px;border-top:1px solid var(--line);gap:14px;flex-wrap:wrap;}
+.pn-btn{
+  display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);
+  padding:10px 16px;border:1px solid var(--line);border-radius:var(--radius);max-width:280px;
+  transition:border-color .12s ease;
+}
+.pn-btn:hover,.pn-btn:focus-visible{border-color:var(--pcb);}
+.pn-btn .pn-dir{font-family:var(--mono);font-size:10px;color:var(--ink-faint);letter-spacing:.06em;}
+.pn-btn .pn-name{font-size:13.5px;font-weight:600;}
+.pn-btn.next{text-align:right;align-items:flex-end;margin-left:auto;}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:25;}
+.overlay.show{display:block;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:980px){
+  .phase-grid{grid-template-columns:repeat(2,1fr);}
+  .spec-grid{grid-template-columns:repeat(3,1fr);}
+  .spec-cell:nth-child(3n){border-right:none;}
+  .skill-list{grid-template-columns:1fr;}
+}
+@media (max-width:760px){
+  .sidebar{position:fixed;left:-300px;top:0;transition:left .2s ease;width:270px;height:100vh;}
+  .sidebar.open{left:0;box-shadow:0 0 40px rgba(0,0,0,.4);}
+  .topbar{display:flex;}
+  .view{padding:26px 18px 70px;}
+  .hero h1{font-size:28px;}
+  .spec-grid{grid-template-columns:repeat(2,1fr);}
+  .spec-cell:nth-child(2n){border-right:none;}
+  .phase-grid{grid-template-columns:1fr;}
+  .day-body{padding-left:14px;}
+  .day-topic{font-size:13.5px;}
+  .day-hours{display:none;}
+  .capstone-box{max-width:100%;}
+  .phase-nav{flex-direction:column;}
+  .pn-btn.next{margin-left:0;text-align:left;align-items:flex-start;}
+  .pn-btn{max-width:100%;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  *,*::before,*::after{
+    animation-duration:0.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="9" y="9" width="14" height="14" rx="1.5" stroke="#8FBF9F" stroke-width="1.6"/>
+        <rect x="13" y="13" width="6" height="6" rx="1" fill="#8FBF9F"/>
+        <path d="M9 13H4M9 19H4M28 13H23M28 19H23M13 9V4M19 9V4M13 28V23M19 28V23" stroke="#8FBF9F" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <div class="brand-text">
+        <div class="l1">Build Log · Rev 1.1</div>
+        <div class="l2">Embedded &amp; Firmware Roadmap</div>
+      </div>
+      <button class="theme-toggle" id="themeToggle" title="Switch theme" aria-label="Switch between light and dark theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v3M12 18.5v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2.5 12h3M18.5 12h3M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="search-input" id="searchInput" type="text" placeholder="Search topics, tools, resources…" autocomplete="off" aria-label="Search the roadmap">
+      <div class="search-results" id="searchResults" role="listbox"></div>
+    </div>
+
+    <nav class="navlist" id="navList" aria-label="Roadmap sections"></nav>
+
+    <div class="sidebar-foot">
+      <b id="footDoneCount">0</b> / <b>224</b> days done &nbsp;·&nbsp; <b>8</b> phases &nbsp;·&nbsp; <b>9</b> projects<br>
+      <span id="persistNote">Progress lives in this tab only — export it to keep a copy, import to restore it later.</span>
+      <div class="io-row">
+        <button class="io-btn" id="exportBtn" type="button" title="Download your progress as a JSON file">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Export
+        </button>
+        <button class="io-btn" id="importBtn" type="button" title="Load a previously exported progress file">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 0 4 4m-4-4-4 4M5 21h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Import
+        </button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <button class="reset-btn" id="resetBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v6h6M20 20v-6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.6 15A8 8 0 1 0 6 7.3L4 10M19.4 9A8 8 0 0 0 18 16.7l2-2.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Reset progress
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="topbar-btn" id="menuBtn" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Menu
+      </button>
+      <span class="topbar-title">Embedded Roadmap</span>
+      <button class="theme-toggle" id="themeToggleMobile" title="Switch theme" aria-label="Switch between light and dark theme">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.3" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v3M12 18.5v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2.5 12h3M18.5 12h3M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="viewRoot"></div>
+  </div>
+</div>
+
+<script>
+const DATA = {"phases":[{"num":1,"title":"Phase 1 (Month 1): C Programming & Computer Fundamentals","short":"C Fundamentals","goal":"Build rock-solid fundamentals in C programming, number systems, computer architecture, Linux and Git - the base every firmware engineer needs.","project":"Capstone: 'Student Record Management System' in pure C using structures, file handling (fread/fwrite) and a Makefile. Push to GitHub with a proper README, sample data and build instructions.","days":[{"Day":1,"Week":1,"Topic":"Orientation + Toolchain Setup","Tasks":"Install GCC/MinGW or WSL Ubuntu, VS Code + C/C++ extension; write & compile your first 'Hello World'; understand compile vs run.","YT_Name":"freeCodeCamp.org - C Programming Full Course","YT_Link":"https://www.youtube.com/@freecodecamp","Other_Name":"Learn-C.org (Interactive)","Other_Link":"https://www.learn-c.org/","Practice":"Compile and run 3 basic C programs (hello world, print name/age, simple sum).","Hours":2},{"Day":2,"Week":1,"Topic":"Variables, Data Types & Operators","Tasks":"int, float, char, double; sizeof(); arithmetic, relational, logical, bitwise, assignment operators; operator precedence.","YT_Name":"freeCodeCamp.org - C Programming Full Course","YT_Link":"https://www.youtube.com/@freecodecamp","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write a program to swap two numbers without a temp variable using arithmetic and XOR.","Hours":3},{"Day":3,"Week":1,"Topic":"Input/Output & Type Conversion","Tasks":"scanf/printf format specifiers; implicit vs explicit type casting; escape sequences.","YT_Name":"freeCodeCamp.org - C Programming Full Course","YT_Link":"https://www.youtube.com/@freecodecamp","Other_Name":"cppreference.com (C Reference)","Other_Link":"https://en.cppreference.com/w/c","Practice":"Build a simple unit converter (km-miles, celsius-fahrenheit).","Hours":3},{"Day":4,"Week":1,"Topic":"Conditional Statements","Tasks":"if, if-else, nested if, else-if ladder, switch-case.","YT_Name":"freeCodeCamp.org - C Programming Full Course","YT_Link":"https://www.youtube.com/@freecodecamp","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Solve 10 conditional-logic problems (grading system, leap year, calculator).","Hours":3},{"Day":5,"Week":1,"Topic":"Loops","Tasks":"for, while, do-while loops; break, continue, nested loops.","YT_Name":"freeCodeCamp.org - C Programming Full Course","YT_Link":"https://www.youtube.com/@freecodecamp","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Print number patterns (pyramid, diamond) and compute factorial/Fibonacci using loops.","Hours":3},{"Day":6,"Week":1,"Topic":"Practice Day - Basics","Tasks":"Timed practice combining variables, conditionals and loops.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"HackerRank Practice","Other_Link":"https://www.hackerrank.com/","Practice":"Solve 8-10 beginner problems on HackerRank 'C' domain.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Setup","Tasks":"Revise Week 1 notes; create a GitHub account and your first repository 'c-fundamentals'.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push Week-1 programs to GitHub with a short README.","Hours":2},{"Day":8,"Week":2,"Topic":"Functions","Tasks":"Function declaration/definition/call, parameters, return values, pass by value, recursion basics.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write recursive functions for factorial, power(x,n) and GCD.","Hours":3},{"Day":9,"Week":2,"Topic":"Arrays (1D & 2D)","Tasks":"Array declaration, traversal, insertion/deletion, 2D arrays/matrices.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement matrix addition, transpose and search-in-array programs.","Hours":3},{"Day":10,"Week":2,"Topic":"Strings","Tasks":"Character arrays, string.h functions (strlen, strcpy, strcmp, strcat), string traversal.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"Beej's Guide to C Programming","Other_Link":"https://beej.us/guide/bgc/","Practice":"Write your own versions of strlen, strrev and palindrome check without string.h.","Hours":3},{"Day":11,"Week":2,"Topic":"Storage Classes & Scope","Tasks":"auto, static, extern, register; variable scope and lifetime.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"cppreference.com (C Reference)","Other_Link":"https://en.cppreference.com/w/c","Practice":"Write a program demonstrating static variable behaviour across function calls.","Hours":2},{"Day":12,"Week":2,"Topic":"Practice - Arrays & Strings","Tasks":"Focused problem solving on arrays and strings.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LeetCode Practice","Other_Link":"https://leetcode.com/","Practice":"Solve 8 array/string problems (reverse array, remove duplicates, anagram check).","Hours":3},{"Day":13,"Week":2,"Topic":"Practice - Recursion","Tasks":"Deepen recursion understanding with tracing/dry-runs.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Solve Tower of Hanoi and print all subsets of a string using recursion.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate functions/arrays/strings.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Build a CLI 'Simple Calculator' with functions for +,-,*,/,% and modulus; push to GitHub.","Hours":3},{"Day":15,"Week":3,"Topic":"Pointers - Basics","Tasks":"Address-of (&) and dereference (*) operators, pointer declaration, pointer arithmetic.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"Beej's Guide to C Programming","Other_Link":"https://beej.us/guide/bgc/","Practice":"Write programs swapping values using pointers and traversing arrays via pointers.","Hours":3},{"Day":16,"Week":3,"Topic":"Pointers with Arrays & Strings","Tasks":"Pointer-array relationship, array of pointers, pointers to functions.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"Beej's Guide to C Programming","Other_Link":"https://beej.us/guide/bgc/","Practice":"Implement your own strcpy and strcat using pointers only.","Hours":3},{"Day":17,"Week":3,"Topic":"Dynamic Memory Allocation","Tasks":"malloc, calloc, realloc, free; heap vs stack memory; memory leaks.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Create a dynamically resizable integer array using realloc.","Hours":3},{"Day":18,"Week":3,"Topic":"Structures & Unions","Tasks":"struct definition, nested structures, array of structures, unions, typedef.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"cppreference.com (C Reference)","Other_Link":"https://en.cppreference.com/w/c","Practice":"Model a 'Student' structure with roll no, name, marks; compute average using array of structures.","Hours":3},{"Day":19,"Week":3,"Topic":"File Handling in C","Tasks":"fopen, fclose, fread, fwrite, fprintf, fscanf; text vs binary files.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write student records to a binary file and read them back.","Hours":3},{"Day":20,"Week":3,"Topic":"Practice - Pointers & Structures","Tasks":"Combine pointers, structures and dynamic memory in one program.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LeetCode Practice","Other_Link":"https://leetcode.com/","Practice":"Implement a simple linked-list-like structure manually using pointers and structs.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision + GitHub Push","Tasks":"Consolidate Week 3 topics; clean up code and comments.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Refactor Week 3 programs and push to GitHub with meaningful commit messages.","Hours":2},{"Day":22,"Week":4,"Topic":"Number Systems & Bitwise Operators","Tasks":"Binary, octal, decimal, hexadecimal conversions; 1's & 2's complement; AND/OR/XOR/NOT/shift operators.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write programs to count set bits, check power of 2, and swap nibbles using bitwise ops.","Hours":3},{"Day":23,"Week":4,"Topic":"Computer Architecture Basics","Tasks":"CPU, ALU, registers, memory hierarchy (cache/RAM/ROM), buses, Von Neumann vs Harvard architecture.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Draw and explain a block diagram of Von Neumann vs Harvard architecture in your notes/GitHub wiki.","Hours":3},{"Day":24,"Week":4,"Topic":"Linux Fundamentals","Tasks":"Linux file system hierarchy, basic commands (ls, cd, cp, mv, grep, chmod), permissions.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Journey","Other_Link":"https://linuxjourney.com/","Practice":"Complete Linux Journey 'Grasshopper' module and practice 20 terminal commands.","Hours":3},{"Day":25,"Week":4,"Topic":"Git & GitHub Version Control","Tasks":"git init, add, commit, push, pull, branch, merge, .gitignore, resolving conflicts.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Git Official Docs","Other_Link":"https://git-scm.com/doc","Practice":"Create a branch, make changes, raise and merge a Pull Request on one of your repos.","Hours":3},{"Day":26,"Week":4,"Topic":"Compilation Process & Makefiles","Tasks":"Preprocessing, compilation, assembly, linking stages; writing a basic Makefile.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write a Makefile that compiles a multi-file C project (main.c + helper.c + helper.h).","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - Bit Manipulation + Build","Tasks":"Combine bitwise logic with a build system.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LeetCode Practice","Other_Link":"https://leetcode.com/","Practice":"Solve 6 bit-manipulation problems; wrap Week 4 programs in a Makefile-based project.","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 1 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate all of Month 1; build and finalize the capstone project end-to-end.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'Student Record Management System' (structs+file I/O+Makefile); write README; push final version to GitHub.","Hours":4}]},{"num":2,"title":"Phase 2 (Month 2): Data Structures & Digital Electronics","short":"Data Structures & Digital Electronics","goal":"Learn core data structures used in firmware (linked lists, stacks, queues, trees) and digital electronics fundamentals (logic gates, boolean algebra, flip-flops) plus basic analog electronics.","project":"Capstone: Implement a mini 'Data Structures Library' in C (stack, queue, singly linked list) as a reusable header+source module + physically build and test a 4-bit binary counter circuit on a breadboard, documented with photos/diagrams on GitHub.","days":[{"Day":1,"Week":1,"Topic":"Complexity Analysis","Tasks":"Time & space complexity, Big-O notation, best/worst/average case.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Analyze time complexity of 5 algorithms you've already written in Month 1.","Hours":2},{"Day":2,"Week":1,"Topic":"Linked Lists - Singly","Tasks":"Node structure, insertion/deletion at head/tail/position, traversal.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement a singly linked list with insert, delete and print operations in C.","Hours":3},{"Day":3,"Week":1,"Topic":"Linked Lists - Doubly & Circular","Tasks":"Doubly linked list, circular linked list, use-cases in embedded (circular buffers).","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement a doubly linked list and a circular linked list from scratch.","Hours":3},{"Day":4,"Week":1,"Topic":"Stacks","Tasks":"Array-based and linked-list-based stack implementation; push/pop/peek; applications (expression evaluation).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement a stack in C and use it to check balanced parentheses.","Hours":3},{"Day":5,"Week":1,"Topic":"Queues","Tasks":"Array-based, linked-list-based and circular queue; enqueue/dequeue; applications in buffering.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement a circular queue in C (critical for UART/ring buffers later).","Hours":3},{"Day":6,"Week":1,"Topic":"Practice - Stacks & Queues","Tasks":"Solve applied problems using stacks/queues.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LeetCode Practice","Other_Link":"https://leetcode.com/","Practice":"Solve 6 problems: min stack, queue using two stacks, infix-to-postfix.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate linked lists/stacks/queues.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Organize DS code into a small library folder structure and push to GitHub.","Hours":2},{"Day":8,"Week":2,"Topic":"Binary Trees","Tasks":"Tree terminology, binary tree representation, preorder/inorder/postorder traversal.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement a binary tree with recursive traversals in C.","Hours":3},{"Day":9,"Week":2,"Topic":"Digital Logic - Logic Gates","Tasks":"AND, OR, NOT, NAND, NOR, XOR, XNOR gates; truth tables; universal gates.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Simulate basic logic gates using an online simulator (Logic.ly/Falstad) and record truth tables.","Hours":3},{"Day":10,"Week":2,"Topic":"Boolean Algebra & K-Maps","Tasks":"Boolean laws, De Morgan's theorem, SOP/POS forms, Karnaugh map simplification.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Simplify 5 boolean expressions manually using K-maps.","Hours":3},{"Day":11,"Week":2,"Topic":"Combinational Circuits","Tasks":"Multiplexers, demultiplexers, encoders, decoders, half/full adders.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Design a half-adder and full-adder circuit on paper and simulate it online.","Hours":3},{"Day":12,"Week":2,"Topic":"Sequential Circuits - Flip-Flops","Tasks":"SR, JK, D, T flip-flops; latches vs flip-flops; clocking.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Simulate a D flip-flop and a JK flip-flop using an online circuit simulator.","Hours":3},{"Day":13,"Week":2,"Topic":"Practice - Trees & Logic Design","Tasks":"Mixed practice day.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Solve 4 binary tree problems + design a 2-bit comparator circuit.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate digital logic.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Simulate basic logic gates in C code (bitwise gate simulator) as a mini software project.","Hours":3},{"Day":15,"Week":3,"Topic":"Counters & Registers","Tasks":"Ripple counters, synchronous counters, shift registers (SISO/SIPO/PISO/PIPO).","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Simulate a 4-bit binary ripple counter using an online tool.","Hours":3},{"Day":16,"Week":3,"Topic":"Basic Analog Electronics","Tasks":"Resistors, capacitors, diodes, transistors (BJT basics), color codes.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"All About Circuits","Other_Link":"https://www.allaboutcircuits.com/","Practice":"Identify resistor values using color codes for 10 sample resistors (real or images).","Hours":2},{"Day":17,"Week":3,"Topic":"Ohm's Law & Circuit Laws","Tasks":"Ohm's law, KVL, KCL, series/parallel circuits, breadboard practice.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"All About Circuits","Other_Link":"https://www.allaboutcircuits.com/","Practice":"Build a simple LED-resistor circuit on a breadboard and calculate required resistor value.","Hours":3},{"Day":18,"Week":3,"Topic":"Multimeter & Datasheets","Tasks":"Using a multimeter (voltage/current/continuity), reading component datasheets.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"All About Circuits","Other_Link":"https://www.allaboutcircuits.com/","Practice":"Measure voltage/current/resistance of your breadboard circuit and note results.","Hours":2},{"Day":19,"Week":3,"Topic":"Power Supplies & Regulators","Tasks":"Linear voltage regulators (LM7805), power supply basics, decoupling capacitors.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"All About Circuits","Other_Link":"https://www.allaboutcircuits.com/","Practice":"Build a 5V regulated power supply circuit using LM7805 on breadboard.","Hours":3},{"Day":20,"Week":3,"Topic":"Practice - Breadboard Mini Project","Tasks":"Apply the week's electronics knowledge.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build an LED chaser circuit (or simulate on Wokwi) powered by your regulated supply.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate electronics fundamentals.","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Re-simulate 2 circuits from this week and note key learnings in your GitHub wiki.","Hours":2},{"Day":22,"Week":4,"Topic":"Sorting Algorithms","Tasks":"Bubble, insertion, selection, quicksort, mergesort; stability and complexity comparison.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement bubble, insertion and quicksort in C; compare execution time for 1000 elements.","Hours":3},{"Day":23,"Week":4,"Topic":"Searching & Hashing","Tasks":"Linear search, binary search, hash tables basics, collision handling.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Implement binary search and a simple hash table with chaining in C.","Hours":3},{"Day":24,"Week":4,"Topic":"OS Concepts for Embedded","Tasks":"Process vs thread, CPU scheduling basics (FCFS, Round Robin), context switching.","YT_Name":"Harvard CS50 (Computer Science Basics)","YT_Link":"https://www.youtube.com/@cs50","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write notes comparing process vs thread with an embedded-systems angle (tasks in RTOS).","Hours":2},{"Day":25,"Week":4,"Topic":"Concurrency Basics","Tasks":"Race conditions, critical sections, mutex vs semaphore (conceptual introduction).","YT_Name":"Harvard CS50 (Computer Science Basics)","YT_Link":"https://www.youtube.com/@cs50","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write a short explainer (README) on race conditions with a real-world embedded example.","Hours":2},{"Day":26,"Week":4,"Topic":"Practice - Sorting/Searching","Tasks":"Applied algorithm practice.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LeetCode Practice","Other_Link":"https://leetcode.com/","Practice":"Solve 6 sorting/searching problems on LeetCode/HackerRank.","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - Electronics Mini Project","Tasks":"Hands-on circuit building.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build/simulate a 4-bit binary counter circuit using flip-flops (breadboard or Wokwi).","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 2 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 2; finalize DS library + counter circuit project.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Finish DS library (stack/queue/linked list) + document the 4-bit counter circuit with photos/schematics; push to GitHub.","Hours":4}]},{"num":3,"title":"Phase 3 (Month 3): Microcontroller Basics (AVR/Arduino) & Embedded C","short":"AVR / Arduino & Embedded C","goal":"Move from theory to real hardware: understand microcontroller architecture, program AVR/Arduino at both library and register level, and interface sensors/actuators/displays.","project":"Capstone: 'Smart Ultrasonic Distance Meter with LCD Display & Buzzer Alert' built using register-level AVR programming (no Arduino libraries), with full schematic and code on GitHub.","days":[{"Day":1,"Week":1,"Topic":"Intro to Microcontrollers","Tasks":"Microcontroller vs microprocessor, embedded system building blocks, popular MCU families (AVR/PIC/ARM/ESP).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Embedded.com Articles","Other_Link":"https://www.embedded.com/","Practice":"Write a comparison table of 4 popular microcontroller families and their typical applications.","Hours":2},{"Day":2,"Week":1,"Topic":"Arduino IDE Setup + Blink","Tasks":"Install Arduino IDE, board/driver setup, understand setup()/loop(), upload Blink sketch.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Arduino Official Docs","Other_Link":"https://docs.arduino.cc/","Practice":"Blink an LED with 3 different timing patterns (SOS pattern) using Arduino Uno or Wokwi simulator.","Hours":2},{"Day":3,"Week":1,"Topic":"Digital I/O","Tasks":"pinMode, digitalWrite, digitalRead; interfacing push buttons with debouncing concept.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Arduino Official Docs","Other_Link":"https://docs.arduino.cc/","Practice":"Build a button-controlled LED (toggle on press) with software debounce.","Hours":3},{"Day":4,"Week":1,"Topic":"Analog I/O & PWM Basics","Tasks":"analogRead (ADC), analogWrite (PWM), potentiometers.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Arduino Official Docs","Other_Link":"https://docs.arduino.cc/","Practice":"Control LED brightness using a potentiometer and PWM.","Hours":3},{"Day":5,"Week":1,"Topic":"Serial Communication Basics","Tasks":"Serial.begin/print/read, UART concept introduction, Serial Monitor debugging.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Arduino Official Docs","Other_Link":"https://docs.arduino.cc/","Practice":"Send sensor readings to Serial Monitor and control an LED via serial commands.","Hours":3},{"Day":6,"Week":1,"Topic":"Practice - Mini I/O Projects","Tasks":"Combine digital/analog I/O.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Build a traffic-light simulator using 3 LEDs and delays/state machine logic.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate Week 1 Arduino basics.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Clean and push all Arduino sketches with README + circuit diagram images.","Hours":2},{"Day":8,"Week":2,"Topic":"AVR Architecture","Tasks":"ATmega328P architecture, memory map (Flash/SRAM/EEPROM), fuses overview.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Microchip AVR Documentation","Other_Link":"https://www.microchip.com/en-us/products/microcontrollers-and-microprocessors/8-bit-mcus/avr-mcus","Practice":"Read the ATmega328P datasheet pinout section and label a diagram.","Hours":2},{"Day":9,"Week":2,"Topic":"Register-Level GPIO","Tasks":"DDRx, PORTx, PINx registers; direct register manipulation (no digitalWrite).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Rewrite Day-3's button-LED project using pure AVR registers instead of Arduino functions.","Hours":3},{"Day":10,"Week":2,"Topic":"Timers/Counters in AVR","Tasks":"Timer0/1/2 basics, prescalers, overflow, CTC mode introduction.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Blink an LED using Timer0 overflow interrupt instead of delay().","Hours":3},{"Day":11,"Week":2,"Topic":"PWM via Registers","Tasks":"Fast PWM / Phase-correct PWM using Timer registers (OCR, TCCR).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Generate PWM directly via timer registers to dim an LED.","Hours":3},{"Day":12,"Week":2,"Topic":"External Interrupts","Tasks":"INT0/INT1, pin change interrupts, ISR writing, interrupt vector table basics.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Toggle an LED using an external interrupt triggered by a button press.","Hours":3},{"Day":13,"Week":2,"Topic":"Practice - Register-Level Project","Tasks":"Combine timers + interrupts at register level.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a register-level 'LED blink + interrupt-based button' project without any Arduino library calls.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate register-level programming.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Document differences between library-based vs register-level code performance/size; push to GitHub.","Hours":3},{"Day":15,"Week":3,"Topic":"Sensor Interfacing - LDR/IR/Ultrasonic","Tasks":"Analog sensors (LDR), IR obstacle sensors, HC-SR04 ultrasonic distance sensor.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Interface an HC-SR04 ultrasonic sensor and print distance on Serial Monitor.","Hours":3},{"Day":16,"Week":3,"Topic":"DC Motor Control","Tasks":"H-bridge concept, L298N motor driver, direction & speed control via PWM.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Control a DC motor's speed and direction using L298N and PWM.","Hours":3},{"Day":17,"Week":3,"Topic":"Servo Motor Control","Tasks":"Servo PWM signal (pulse width to angle), Servo library / manual pulse generation.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Sweep a servo motor 0-180 degrees using both Servo library and manual PWM.","Hours":3},{"Day":18,"Week":3,"Topic":"7-Segment & 16x2 LCD","Tasks":"7-segment display multiplexing, character LCD interfacing (4-bit/8-bit mode, HD44780).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Display a counting number on a 7-segment display and 'Hello Embedded' on a 16x2 LCD.","Hours":3},{"Day":19,"Week":3,"Topic":"Keypad Interfacing","Tasks":"4x4 matrix keypad scanning technique, debouncing keys.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Build a simple keypad + LCD password entry system.","Hours":3},{"Day":20,"Week":3,"Topic":"Practice - Sensor Mini Project","Tasks":"Combine sensor + actuator + display.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build an 'obstacle-detecting alarm' using ultrasonic sensor + buzzer + LCD status.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate sensor/actuator interfacing.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Document wiring diagrams for all Week-3 modules and push to GitHub.","Hours":2},{"Day":22,"Week":4,"Topic":"Embedded C Coding Standards","Tasks":"MISRA-C introduction, volatile keyword, const-correctness, avoiding undefined behaviour.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"Embedded.com Articles","Other_Link":"https://www.embedded.com/","Practice":"Refactor one earlier project to follow basic MISRA-C style guidelines and use 'volatile' correctly.","Hours":3},{"Day":23,"Week":4,"Topic":"Bit Manipulation for Registers","Tasks":"Setting/clearing/toggling/reading specific bits in hardware registers using masks.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Write reusable bit-set/bit-clear/bit-toggle macros and use them across your AVR projects.","Hours":2},{"Day":24,"Week":4,"Topic":"Watchdog Timer & Power Modes","Tasks":"WDT concept and use, sleep modes (idle, power-down) for low-power embedded design.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Microchip AVR Documentation","Other_Link":"https://www.microchip.com/en-us/products/microcontrollers-and-microprocessors/8-bit-mcus/avr-mcus","Practice":"Implement a watchdog timer reset demo and test entering/exiting sleep mode.","Hours":3},{"Day":25,"Week":4,"Topic":"EEPROM Read/Write","Tasks":"Internal EEPROM usage in AVR for persistent data storage.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"AVR-Libc Reference Manual","Other_Link":"https://www.nongnu.org/avr-libc/user-manual/","Practice":"Store and retrieve a counter value from EEPROM that persists across power cycles.","Hours":3},{"Day":26,"Week":4,"Topic":"Debugging Embedded C","Tasks":"Serial-print debugging strategies, common embedded bugs (off-by-one, uninitialized vars, stack overflow).","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"Embedded.com Articles","Other_Link":"https://www.embedded.com/","Practice":"Deliberately introduce 3 common bugs into old code and practice finding/fixing them.","Hours":2},{"Day":27,"Week":4,"Topic":"Practice - Integration Project","Tasks":"Combine sensor + actuator + display + EEPROM.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a mini data-logger: read sensor, show on LCD, store max value in EEPROM.","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 3 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 3; finalize the capstone project fully at register level.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'Smart Ultrasonic Distance Meter with LCD & Buzzer' (register-level AVR); document and push to GitHub.","Hours":4}]},{"num":4,"title":"Phase 4 (Month 4): ARM Cortex-M & STM32 Fundamentals","short":"ARM Cortex-M & STM32","goal":"Transition to industry-standard 32-bit ARM Cortex-M microcontrollers (STM32): architecture, startup/boot process, HAL vs bare-metal/CMSIS programming, timers, ADC/DAC and low power modes.","project":"Capstone: 'PWM-based DC Motor Speed Controller with ADC Potentiometer Input' implemented in BOTH STM32 HAL and bare-metal/CMSIS register style, documented and pushed to GitHub.","days":[{"Day":1,"Week":1,"Topic":"ARM Cortex-M Architecture","Tasks":"Cortex-M0/M3/M4 differences, RISC vs CISC, Cortex-M register set (R0-R15), Thumb instruction set overview.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ARM Developer Documentation (Cortex-M)","Other_Link":"https://developer.arm.com/documentation","Practice":"Read ARM Cortex-M4 Technical Reference Manual intro section and summarize register set.","Hours":3},{"Day":2,"Week":1,"Topic":"STM32 Family Overview","Tasks":"STM32 naming convention, choosing a board (Blue Pill/Nucleo), STM32 ecosystem overview.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Identify and note specs of an STM32 board (real or to purchase) - Flash, RAM, peripherals.","Hours":2},{"Day":3,"Week":1,"Topic":"STM32CubeIDE/CubeMX Setup","Tasks":"Install STM32CubeIDE, create first project with CubeMX, blink LED using HAL_GPIO functions.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Create and flash a HAL-based LED blink project on STM32 (or Wokwi STM32 simulation).","Hours":3},{"Day":4,"Week":1,"Topic":"Memory Map & Clock Tree (RCC)","Tasks":"STM32 memory map (Flash/SRAM/peripheral regions), RCC clock tree, HSI/HSE/PLL basics.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure system clock using CubeMX Clock Configuration tab and note resulting SYSCLK.","Hours":3},{"Day":5,"Week":1,"Topic":"GPIO: Registers vs HAL","Tasks":"GPIO register-level configuration (MODER, ODR, IDR) vs HAL_GPIO abstraction.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Mbed/ARM CMSIS Docs","Other_Link":"https://developer.arm.com/tools-and-software/embedded/cmsis","Practice":"Write the same LED blink program twice: once with HAL, once with direct register access.","Hours":3},{"Day":6,"Week":1,"Topic":"Practice - Blink Patterns Bare-Metal","Tasks":"Reinforce register-level GPIO.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Implement 3 different LED blink patterns using pure register manipulation.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate Week 1 STM32 basics.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push HAL and bare-metal blink projects with a comparison README.","Hours":2},{"Day":8,"Week":2,"Topic":"Startup File & Vector Table","Tasks":"startup_stm32*.s file, vector table, reset handler, weak symbol aliasing.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ARM Developer Documentation (Cortex-M)","Other_Link":"https://developer.arm.com/documentation","Practice":"Open the startup .s file of your project and annotate the reset handler and vector table entries.","Hours":3},{"Day":9,"Week":2,"Topic":"Linker Script Basics","Tasks":"Memory sections (.text, .data, .bss), linker script structure, stack/heap placement.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"OSDev Wiki","Other_Link":"https://wiki.osdev.org/","Practice":"Inspect your project's .ld linker script and map out where .text/.data/.bss are placed.","Hours":3},{"Day":10,"Week":2,"Topic":"NVIC & Interrupts","Tasks":"Nested Vectored Interrupt Controller, interrupt priorities, enabling/handling IRQs.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ARM Developer Documentation (Cortex-M)","Other_Link":"https://developer.arm.com/documentation","Practice":"Configure a button-triggered EXTI interrupt on STM32 to toggle an LED.","Hours":3},{"Day":11,"Week":2,"Topic":"SysTick Timer","Tasks":"SysTick configuration for millisecond delays, HAL_Delay internals.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Implement a non-blocking delay system using SysTick instead of HAL_Delay.","Hours":3},{"Day":12,"Week":2,"Topic":"Debugging with SWD/ST-Link","Tasks":"Setting breakpoints, watch variables, step-through debugging, using ST-Link/OpenOCD.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Debug a running project step-by-step; inspect register values live in the IDE.","Hours":3},{"Day":13,"Week":2,"Topic":"Practice - Interrupt-driven Project","Tasks":"Apply interrupts practically.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build an interrupt-driven button counter displayed via LEDs or Serial output.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate boot process & interrupts.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Document the STM32 boot sequence (reset -> startup -> main) as a diagram in your repo README.","Hours":3},{"Day":15,"Week":3,"Topic":"General Purpose Timers","Tasks":"Timer configuration registers, timer modes, prescaler & auto-reload calculations.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure a timer to trigger an interrupt exactly every 500ms and toggle an LED.","Hours":3},{"Day":16,"Week":3,"Topic":"PWM Generation","Tasks":"Timer PWM mode, duty cycle calculation, HAL_TIM_PWM functions.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Generate PWM signal on a timer channel to control LED brightness smoothly (breathing LED).","Hours":3},{"Day":17,"Week":3,"Topic":"Input Capture & Output Compare","Tasks":"Measuring pulse width/frequency with input capture; output compare for precise timing events.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Measure the frequency of an external square wave signal using input capture mode.","Hours":3},{"Day":18,"Week":3,"Topic":"ADC on STM32","Tasks":"Single/continuous conversion modes, ADC resolution, reference voltage, multi-channel scanning.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Read a potentiometer's voltage via ADC and print the value over UART/Serial.","Hours":3},{"Day":19,"Week":3,"Topic":"DAC Basics","Tasks":"Digital-to-Analog Converter configuration, generating analog waveforms.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Generate a simple sine/triangle wave using STM32's DAC output (verify with oscilloscope/simulator).","Hours":3},{"Day":20,"Week":3,"Topic":"Practice - PWM + ADC Mini Project","Tasks":"Combine timers and ADC.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a potentiometer-controlled PWM LED dimmer (ADC reads pot, PWM controls brightness).","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate timers/PWM/ADC/DAC.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Clean up and push all timer/ADC/DAC projects with clear comments.","Hours":2},{"Day":22,"Week":4,"Topic":"CMSIS & Register-Level Programming","Tasks":"CMSIS-Core overview, using CMSIS macros for register access, comparing with HAL.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Mbed/ARM CMSIS Docs","Other_Link":"https://developer.arm.com/tools-and-software/embedded/cmsis","Practice":"Rewrite the GPIO+Timer blink project using pure CMSIS register definitions (no HAL calls).","Hours":3},{"Day":23,"Week":4,"Topic":"Low Power Modes","Tasks":"Sleep, Stop and Standby modes on STM32; wake-up sources; power consumption trade-offs.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Implement Stop mode with wake-up via external interrupt; measure/estimate power savings.","Hours":3},{"Day":24,"Week":4,"Topic":"DMA Basics with ADC","Tasks":"Direct Memory Access concept, configuring DMA to auto-transfer ADC readings to a buffer.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure ADC+DMA to continuously fill a buffer of sensor readings without CPU intervention.","Hours":3},{"Day":25,"Week":4,"Topic":"Oscilloscope & Logic Analyzer Intro","Tasks":"Reading signals on an oscilloscope/logic analyzer (or free simulator), triggering, measuring frequency/duty cycle.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Use a simulator (Wokwi/PulseView with sample captures) to analyze a PWM signal's duty cycle.","Hours":2},{"Day":26,"Week":4,"Topic":"Practice - DMA Data Logger","Tasks":"Apply DMA practically.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a simple ADC+DMA based data logger that stores 100 samples and prints statistics.","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - Combined Mini Project","Tasks":"Merge timer + ADC + PWM.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Build a system where an ADC reading modulates a PWM output and triggers a timer-based alert.","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 4 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 4; finalize HAL and bare-metal versions of the capstone project.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'PWM Motor Speed Controller with ADC Input' (HAL + bare-metal); push both versions with README comparing them.","Hours":4}]},{"num":5,"title":"Phase 5 (Month 5): Communication Protocols (UART/SPI/I2C/CAN) & Peripherals","short":"UART / SPI / I2C / CAN","goal":"Master the communication protocols every firmware engineer is tested on: UART, SPI, I2C and an introduction to CAN, plus watchdogs and RTC.","project":"Capstone: 'Environmental Monitoring System' - I2C sensor (temperature/humidity) read by STM32, shown on an SPI-driven display, data reported over UART to a PC terminal, with watchdog-based fault recovery.","days":[{"Day":1,"Week":1,"Topic":"UART Protocol Theory","Tasks":"Frame format (start/stop/parity bits), baud rate calculation, synchronous vs asynchronous communication.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Manually calculate baud rate register values for 3 different baud rates on your MCU.","Hours":2},{"Day":2,"Week":1,"Topic":"UART - Polling Mode","Tasks":"Configuring UART TX/RX in polling mode using STM32 HAL.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Send 'Hello World' over UART every second and receive/echo characters typed from a serial terminal.","Hours":3},{"Day":3,"Week":1,"Topic":"UART - Interrupt Mode","Tasks":"Receiving UART data using interrupts (HAL_UART_Receive_IT) instead of polling.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Build a UART interrupt-driven command receiver (e.g., 'LED_ON'/'LED_OFF' commands).","Hours":3},{"Day":4,"Week":1,"Topic":"UART with DMA","Tasks":"Configuring UART RX/TX with DMA for efficient large data transfers.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Receive a variable-length string via UART+DMA and process it once idle-line is detected.","Hours":3},{"Day":5,"Week":1,"Topic":"Retargeting printf over UART","Tasks":"Redirecting printf() to UART for easy debugging (retarget.c / _write syscall).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Retarget printf so you can use printf('Sensor=%d', value) for debugging over serial.","Hours":3},{"Day":6,"Week":1,"Topic":"Practice - UART Command Project","Tasks":"Apply UART practically.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a serial-terminal-controlled LED/motor system accepting text commands over UART.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate UART.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push all UART projects (polling/interrupt/DMA) with a comparison table in the README.","Hours":2},{"Day":8,"Week":2,"Topic":"SPI Protocol Theory","Tasks":"Master/slave concept, MOSI/MISO/SCK/CS lines, clock polarity (CPOL) and phase (CPHA).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Draw an SPI timing diagram showing all 4 CPOL/CPHA mode combinations.","Hours":2},{"Day":9,"Week":2,"Topic":"SPI Configuration on STM32","Tasks":"Configuring SPI peripheral (master mode) using HAL, chip-select handling.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure SPI master mode and loop-back test (connect MOSI to MISO) to verify transmission.","Hours":3},{"Day":10,"Week":2,"Topic":"Interfacing an SPI Device","Tasks":"Connecting and driving a real SPI peripheral (e.g., MAX7219 LED matrix or SD card module).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Interface an SPI-based display/module and display a pattern or text.","Hours":3},{"Day":11,"Week":2,"Topic":"SPI Practice Project - Display Driver","Tasks":"Write a small driver abstraction layer for the SPI device.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Write init(), write_data(), and clear() functions for your SPI display driver.","Hours":3},{"Day":12,"Week":2,"Topic":"SPI Debugging","Tasks":"Using a logic analyzer (or simulator) to inspect SPI transactions and debug wiring/timing issues.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Capture and analyze an SPI transaction waveform (real logic analyzer or simulated trace).","Hours":2},{"Day":13,"Week":2,"Topic":"Practice - SPI Project","Tasks":"Extend the SPI display driver into a mini application.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Build a small SPI-driven 'status dashboard' showing sensor values or system state.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate SPI.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Package your SPI driver as a reusable module and push to GitHub with API documentation.","Hours":3},{"Day":15,"Week":3,"Topic":"I2C Protocol Theory","Tasks":"Start/stop conditions, 7-bit/10-bit addressing, ACK/NACK, clock stretching, multi-master concept.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Draw an I2C transaction timing diagram (address + R/W + ACK + data + ACK).","Hours":2},{"Day":16,"Week":3,"Topic":"I2C Configuration on STM32","Tasks":"Configuring I2C peripheral as master using HAL, scanning the I2C bus for devices.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Write an I2C bus scanner that detects and prints addresses of all connected I2C devices.","Hours":3},{"Day":17,"Week":3,"Topic":"Interfacing an I2C Sensor","Tasks":"Reading real sensor data (e.g., MPU6050 accelerometer/gyro or BMP180/BME280 pressure/temp sensor).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Read and print live temperature/accelerometer data from an I2C sensor.","Hours":3},{"Day":18,"Week":3,"Topic":"I2C EEPROM Interfacing","Tasks":"Reading/writing external I2C EEPROM (24LCxx family) for persistent storage.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"LastMinuteEngineers Tutorials","Other_Link":"https://lastminuteengineers.com/","Practice":"Store and retrieve a data structure (e.g., calibration values) from an external I2C EEPROM.","Hours":3},{"Day":19,"Week":3,"Topic":"UART vs SPI vs I2C","Tasks":"Comparative analysis: speed, wiring complexity, use-cases, when to choose which protocol.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Embedded.com Articles","Other_Link":"https://www.embedded.com/","Practice":"Write a comparison table (speed, pins, distance, typical use-case) for UART/SPI/I2C - great for interviews.","Hours":2},{"Day":20,"Week":3,"Topic":"Practice - I2C Data Logger","Tasks":"Apply I2C practically with periodic logging.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a sensor data logger that reads I2C sensor every second and stores/prints readings.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate I2C week.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push I2C sensor driver + EEPROM driver as reusable modules to GitHub.","Hours":2},{"Day":22,"Week":4,"Topic":"CAN Protocol Basics","Tasks":"CAN bus fundamentals, frame format, arbitration, use in automotive/industrial embedded systems.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"CAN Bus / CiA Learn Resources","Other_Link":"https://www.can-cia.org/can-knowledge/","Practice":"Read a CAN bus introduction article and summarize frame structure (identifier, DLC, data, CRC).","Hours":2},{"Day":23,"Week":4,"Topic":"STM32 CAN Configuration","Tasks":"Basic bxCAN peripheral configuration on STM32, filters, loopback mode testing.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure CAN peripheral in loopback mode and send/receive a test message.","Hours":3},{"Day":24,"Week":4,"Topic":"Watchdog Timers","Tasks":"Independent Watchdog (IWDG) and Window Watchdog (WWDG) - configuration and use for fault recovery.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Implement IWDG that resets the MCU if the main loop hangs; test with a deliberate infinite loop.","Hours":3},{"Day":25,"Week":4,"Topic":"Real-Time Clock (RTC)","Tasks":"Configuring RTC for keeping time/date, wake-up alarms, battery-backed domain.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Configure the RTC to keep time and print current date/time over UART every second.","Hours":3},{"Day":26,"Week":4,"Topic":"Practice - I2C+UART Integration","Tasks":"Combine sensor reading with reporting.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a system: I2C sensor reads data -> reported over UART -> with RTC timestamp on each reading.","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - CAN Loopback Mini Test","Tasks":"Reinforce CAN basics.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Extend your CAN loopback test to send periodic sensor-value messages.","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 5 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 5; finalize the environmental monitoring capstone.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'Environmental Monitoring System' (I2C sensor + SPI display + UART reporting + Watchdog); push to GitHub with full documentation.","Hours":4}]},{"num":6,"title":"Phase 6 (Month 6): RTOS (FreeRTOS) & Professional Debugging","short":"FreeRTOS & Debugging","goal":"Learn Real-Time Operating System concepts with FreeRTOS (tasks, queues, semaphores, mutexes), professional debugging tools, and software-engineering practices (Git workflow, unit testing, static analysis).","project":"Capstone: 'Multi-tasking Weather Station' using FreeRTOS with separate tasks for sensor reading (I2C), display update, and a UART command interface - synchronized using queues and semaphores.","days":[{"Day":1,"Week":1,"Topic":"RTOS Concepts","Tasks":"Bare-metal vs RTOS, why use an RTOS, cooperative vs preemptive scheduling, real-time constraints (hard/soft).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Write a short comparison (README) of bare-metal super-loop vs RTOS-based design for a multi-sensor system.","Hours":2},{"Day":2,"Week":1,"Topic":"FreeRTOS Setup on STM32","Tasks":"Enabling FreeRTOS middleware via CubeMX, project structure, FreeRTOSConfig.h basics.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Create a new CubeMX project with FreeRTOS enabled and run the default 'idle' project.","Hours":3},{"Day":3,"Week":1,"Topic":"Tasks - Creation & Priority","Tasks":"xTaskCreate, task priorities, task stack size considerations, idle task.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Create 2 tasks that blink two different LEDs at different rates concurrently.","Hours":3},{"Day":4,"Week":1,"Topic":"Task States & Delays","Tasks":"Running/Ready/Blocked/Suspended states, vTaskDelay vs HAL_Delay, vTaskDelayUntil for periodic tasks.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Modify your tasks to use vTaskDelayUntil for precise periodic timing.","Hours":3},{"Day":5,"Week":1,"Topic":"Queues in FreeRTOS","Tasks":"xQueueCreate, xQueueSend, xQueueReceive - inter-task communication.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Create a producer task that sends sensor values via a queue to a consumer task that prints them.","Hours":3},{"Day":6,"Week":1,"Topic":"Practice - Multi-task Project","Tasks":"Combine tasks and queues.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Build a 3-task system: sensor read task -> queue -> display task, plus an independent blink task.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate RTOS basics.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push Week-1 FreeRTOS projects with an explanation of task priorities chosen and why.","Hours":2},{"Day":8,"Week":2,"Topic":"Semaphores","Tasks":"Binary semaphores, counting semaphores, use for signalling between ISR and task.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Use a binary semaphore to signal a task from a button-press ISR ('deferred interrupt processing').","Hours":3},{"Day":9,"Week":2,"Topic":"Mutexes & Priority Inversion","Tasks":"Mutex for protecting shared resources, priority inversion problem, priority inheritance.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Protect a shared UART/print resource between two tasks using a mutex.","Hours":3},{"Day":10,"Week":2,"Topic":"Event Groups","Tasks":"xEventGroupCreate, setting/waiting on event bits for synchronizing multiple tasks.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Use an event group so a task waits for 2 separate conditions to be true before proceeding.","Hours":3},{"Day":11,"Week":2,"Topic":"Software Timers","Tasks":"xTimerCreate, one-shot vs auto-reload timers, timer callbacks.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Implement a software timer that triggers a periodic 'heartbeat' LED toggle without a dedicated task.","Hours":3},{"Day":12,"Week":2,"Topic":"Task Notifications","Tasks":"Lightweight alternative to semaphores/queues for simple task-to-task or ISR-to-task signalling.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Replace one of your semaphore-based signals with a direct task notification and compare.","Hours":3},{"Day":13,"Week":2,"Topic":"Practice - Producer/Consumer","Tasks":"Apply synchronization concepts together.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Implement the classic producer-consumer problem using a queue and semaphore in FreeRTOS.","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate RTOS synchronization primitives.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Document when to use queue vs semaphore vs mutex vs event group (interview-ready notes) and push to GitHub.","Hours":3},{"Day":15,"Week":3,"Topic":"FreeRTOS Memory Management","Tasks":"heap_1 through heap_5 allocation schemes, choosing the right one, static vs dynamic allocation.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Switch your project between heap_1 and heap_4 and observe/read about the behavioural differences.","Hours":2},{"Day":16,"Week":3,"Topic":"Stack Overflow Detection & RTOS Debugging","Tasks":"uxTaskGetStackHighWaterMark, stack overflow hooks, SEGGER SystemView/CubeMonitor-RTOS basics.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Check stack high-water-mark of each task and deliberately trigger/detect a stack overflow.","Hours":3},{"Day":17,"Week":3,"Topic":"ISR-Safe APIs in RTOS","Tasks":"FromISR variants of RTOS APIs, why regular APIs are unsafe in interrupt context.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Refactor your button ISR to correctly use xSemaphoreGiveFromISR / xQueueSendFromISR.","Hours":3},{"Day":18,"Week":3,"Topic":"Logic Analyzer for Protocol Debugging","Tasks":"Using a logic analyzer/PulseView-style tool to debug UART/SPI/I2C protocol issues at the signal level.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Capture and interpret a sample I2C or SPI waveform, identifying start/stop/ACK bits.","Hours":2},{"Day":19,"Week":3,"Topic":"Oscilloscope for Signal Debugging","Tasks":"Reading rise/fall time, noise, glitches on an oscilloscope (or simulator) for hardware-level debugging.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"All About Circuits","Other_Link":"https://www.allaboutcircuits.com/","Practice":"Analyze a PWM signal's rise time and duty cycle using an oscilloscope/simulator trace.","Hours":2},{"Day":20,"Week":3,"Topic":"Practice - Debug a Buggy Project","Tasks":"Deliberate practice in debugging.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Introduce 3 subtle bugs (race condition, wrong priority, missing FromISR) into an old RTOS project and fix them.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate debugging skills.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Write a 'Debugging Embedded Systems - Checklist' document and push to GitHub.","Hours":2},{"Day":22,"Week":4,"Topic":"Git Branching & Code Review","Tasks":"Git flow (feature branches, main/dev), pull requests, code review etiquette.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Git Official Docs","Other_Link":"https://git-scm.com/doc","Practice":"Simulate a feature-branch workflow: branch, commit, open PR, review your own diff, merge.","Hours":2},{"Day":23,"Week":4,"Topic":"Professional Documentation","Tasks":"Writing high-quality README files, architecture diagrams, wiring diagrams for embedded projects.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Rewrite the README of your best project so far to a professional portfolio standard.","Hours":2},{"Day":24,"Week":4,"Topic":"Unit Testing Embedded Code","Tasks":"Unity/Ceedling test framework basics, testing hardware-independent logic (e.g., algorithms, parsers).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Ceedling/Unity Test Framework Docs","Other_Link":"https://www.throwtheswitch.org/","Practice":"Write Unity unit tests for a pure-logic module (e.g., your ring-buffer or checksum function).","Hours":3},{"Day":25,"Week":4,"Topic":"Static Analysis Tools","Tasks":"Using cppcheck for catching bugs/undefined behaviour before runtime; basic linting practices.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Cppcheck Static Analysis Docs","Other_Link":"https://cppcheck.sourceforge.io/","Practice":"Run cppcheck on 2 of your past C projects and fix at least 3 reported warnings.","Hours":2},{"Day":26,"Week":4,"Topic":"Practice - Add Tests to Old Project","Tasks":"Reinforce testing discipline.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Ceedling/Unity Test Framework Docs","Other_Link":"https://www.throwtheswitch.org/","Practice":"Add unit tests to your Month-2 data structures library (stack/queue).","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - RTOS Integration Project","Tasks":"Merge sensor + display + RTOS.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Circuit Digest Tutorials","Other_Link":"https://circuitdigest.com/","Practice":"Extend your weather-station tasks to also respond to UART commands (change reporting interval, etc.).","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 6 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 6; finalize the multi-tasking capstone project.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'Multi-tasking Weather Station' (FreeRTOS, queues, semaphores, UART command task); push to GitHub with tests and full docs.","Hours":4}]},{"num":7,"title":"Phase 7 (Month 7): Embedded Linux, Bootloaders & Wireless/IoT","short":"Embedded Linux, Bootloaders & IoT","goal":"Explore advanced/differentiating topics: embedded Linux basics and simple kernel modules, writing a custom bootloader, professional build systems (Make/CMake/CI), and wireless connectivity with ESP32 (Wi-Fi/BLE/MQTT).","project":"Capstone: 'IoT-enabled Firmware Update System' - STM32 running a custom UART bootloader for field firmware updates + an ESP32 publishing live sensor data to a cloud MQTT dashboard.","days":[{"Day":1,"Week":1,"Topic":"Embedded Linux Overview","Tasks":"Why Linux in embedded systems, Yocto/Buildroot concept, embedded Linux vs RTOS trade-offs.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Yocto Project Documentation","Other_Link":"https://docs.yoctoproject.org/","Practice":"Write a comparison note: when to use RTOS vs embedded Linux for a given product.","Hours":2},{"Day":2,"Week":1,"Topic":"Raspberry Pi as Embedded Linux Platform","Tasks":"Setting up Raspberry Pi OS (or QEMU), SSH access, basic Linux administration on-device.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Journey","Other_Link":"https://linuxjourney.com/","Practice":"Set up a Raspberry Pi (or Linux VM) and SSH into it; run basic system info commands.","Hours":3},{"Day":3,"Week":1,"Topic":"Linux GPIO from Userspace","Tasks":"Controlling GPIO pins via /sys/class/gpio or libgpiod from a Linux userspace application.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Kernel.org Documentation","Other_Link":"https://www.kernel.org/doc/html/latest/","Practice":"Write a C or Python script that toggles a Raspberry Pi GPIO pin using libgpiod.","Hours":3},{"Day":4,"Week":1,"Topic":"Cross-Compilation Concepts","Tasks":"Toolchains, target vs host architecture, cross-compiling a simple C program for ARM Linux.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Buildroot Documentation","Other_Link":"https://buildroot.org/docs.html","Practice":"Cross-compile a 'Hello World' C program for ARM and run it on your Raspberry Pi/target.","Hours":3},{"Day":5,"Week":1,"Topic":"Device Tree Basics","Tasks":"What a device tree is and why Linux uses it to describe hardware, basic .dts syntax.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Kernel.org Documentation","Other_Link":"https://www.kernel.org/doc/html/latest/","Practice":"Read your board's device tree source file and identify 3 hardware nodes it describes.","Hours":2},{"Day":6,"Week":1,"Topic":"Practice - GPIO App","Tasks":"Reinforce Linux GPIO control.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Kernel.org Documentation","Other_Link":"https://www.kernel.org/doc/html/latest/","Practice":"Build a small userspace app that blinks an LED and reads a button on Raspberry Pi/BeagleBone.","Hours":3},{"Day":7,"Week":1,"Topic":"Revision + GitHub Push","Tasks":"Consolidate Week 1 Linux basics.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push your Linux GPIO project with setup instructions for others to reproduce.","Hours":2},{"Day":8,"Week":2,"Topic":"Kernel Module Basics","Tasks":"Hello-world Linux kernel module: module_init/module_exit, insmod/rmmod, dmesg.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Kernel Module Programming Guide","Other_Link":"https://sysprog21.github.io/lkmpg/","Practice":"Write, compile and load a 'Hello World' kernel module; verify with dmesg.","Hours":3},{"Day":9,"Week":2,"Topic":"Character Device Drivers - Intro","Tasks":"Major/minor numbers, file_operations structure, register_chrdev basics.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Kernel Module Programming Guide","Other_Link":"https://sysprog21.github.io/lkmpg/","Practice":"Read the character-driver chapter of the LKMPG and outline the steps to create one.","Hours":2},{"Day":10,"Week":2,"Topic":"Character Device Driver - LED Driver","Tasks":"Writing a simple character driver that turns an LED on/off via a device file (e.g., /dev/myled).","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Kernel Module Programming Guide","Other_Link":"https://sysprog21.github.io/lkmpg/","Practice":"Implement a basic character driver exposing read/write to control an LED.","Hours":3},{"Day":11,"Week":2,"Topic":"Kernel Interrupts (Intro)","Tasks":"Concept of interrupt handling in kernel space, request_irq basics (conceptual overview).","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Kernel.org Documentation","Other_Link":"https://www.kernel.org/doc/html/latest/","Practice":"Read about request_irq() and summarize the top-half/bottom-half interrupt handling model.","Hours":2},{"Day":12,"Week":2,"Topic":"I2C/SPI Drivers Concept","Tasks":"How I2C/SPI device drivers register with the kernel subsystem (i2c_driver/spi_driver structures).","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Kernel.org Documentation","Other_Link":"https://www.kernel.org/doc/html/latest/","Practice":"Read the kernel I2C driver documentation and sketch the structure of a minimal i2c_driver.","Hours":2},{"Day":13,"Week":2,"Topic":"Practice - Build & Load Module","Tasks":"Reinforce kernel module workflow.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Linux Kernel Module Programming Guide","Other_Link":"https://sysprog21.github.io/lkmpg/","Practice":"Extend your character driver to support an ioctl command (e.g., set blink rate).","Hours":3},{"Day":14,"Week":2,"Topic":"Revision + Weekly Project","Tasks":"Consolidate Linux driver concepts.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Document your kernel module project (build steps, insmod, testing) and push to GitHub.","Hours":3},{"Day":15,"Week":3,"Topic":"Bootloader Concepts","Tasks":"What a bootloader does, boot stages, memory layout for bootloader + application, jump-to-application technique.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Diagram the memory layout of a bootloader + application scheme (flash partitioning).","Hours":2},{"Day":16,"Week":3,"Topic":"Writing a Simple STM32 Bootloader","Tasks":"Implementing a UART-based bootloader that receives a new firmware binary and flashes it.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Implement a minimal UART bootloader that can erase flash and write a received binary image.","Hours":4},{"Day":17,"Week":3,"Topic":"Makefile Deep Dive","Tasks":"Writing production-grade Makefiles for embedded projects (multi-file, variables, pattern rules).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Write a parameterized Makefile that can build both bootloader and application binaries.","Hours":3},{"Day":18,"Week":3,"Topic":"CMake for Embedded","Tasks":"CMakeLists.txt basics, toolchain files for cross-compilation, why teams prefer CMake over raw Makefiles.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"CMake Official Tutorial","Other_Link":"https://cmake.org/cmake/help/latest/guide/tutorial/index.html","Practice":"Convert one of your Makefile-based projects to use CMake with a cross-compilation toolchain file.","Hours":3},{"Day":19,"Week":3,"Topic":"CI Basics for Embedded","Tasks":"GitHub Actions - automatically building firmware on every push, basic CI/CD concepts.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Actions Documentation","Other_Link":"https://docs.github.com/en/actions","Practice":"Set up a GitHub Actions workflow that automatically builds your firmware project on every commit.","Hours":3},{"Day":20,"Week":3,"Topic":"Practice - Bootloader Test","Tasks":"Reinforce bootloader project.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Test your UART bootloader end-to-end: flash bootloader, then use it to update the application firmware.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision","Tasks":"Consolidate bootloader/build-systems week.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Push the completed bootloader + CMake + CI setup to GitHub with a clear architecture README.","Hours":2},{"Day":22,"Week":4,"Topic":"ESP32 & Wi-Fi Basics","Tasks":"ESP32 overview, Arduino-ESP32 core vs ESP-IDF, connecting to a Wi-Fi network.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Espressif ESP-IDF Docs","Other_Link":"https://docs.espressif.com/projects/esp-idf/en/latest/esp32/","Practice":"Connect an ESP32 to your home Wi-Fi network and print the assigned IP address over Serial.","Hours":3},{"Day":23,"Week":4,"Topic":"HTTP Requests from ESP32","Tasks":"Making GET/POST HTTP requests from ESP32 to a web API.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Espressif ESP-IDF Docs","Other_Link":"https://docs.espressif.com/projects/esp-idf/en/latest/esp32/","Practice":"Fetch data from a public REST API (e.g., a weather API) using ESP32 and print the result.","Hours":3},{"Day":24,"Week":4,"Topic":"MQTT Protocol Basics","Tasks":"Publish/subscribe model, topics, QoS levels, connecting to a public MQTT broker.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"HiveMQ - MQTT Essentials","Other_Link":"https://www.hivemq.com/mqtt-essentials/","Practice":"Publish simulated sensor data from ESP32 to a public MQTT broker (e.g., test.mosquitto.org).","Hours":3},{"Day":25,"Week":4,"Topic":"Bluetooth/BLE Basics with ESP32","Tasks":"BLE fundamentals - GATT, services/characteristics, advertising; simple BLE server on ESP32.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Espressif ESP-IDF Docs","Other_Link":"https://docs.espressif.com/projects/esp-idf/en/latest/esp32/","Practice":"Create a basic BLE server on ESP32 that advertises and lets a phone app read a sensor value.","Hours":3},{"Day":26,"Week":4,"Topic":"Practice - IoT Dashboard","Tasks":"Connect ESP32 data to a visual dashboard.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"HiveMQ - MQTT Essentials","Other_Link":"https://www.hivemq.com/mqtt-essentials/","Practice":"Send sensor data from ESP32 via MQTT to a free dashboard (e.g., ThingSpeak, Node-RED, or a simple MQTT-dashboard app).","Hours":3},{"Day":27,"Week":4,"Topic":"Practice - Integrate Bootloader + IoT","Tasks":"Combine Month-7 capstone pieces.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Wire together the STM32 (with bootloader) and ESP32 (with MQTT) so ESP32 can trigger/report a firmware update event.","Hours":3},{"Day":28,"Week":4,"Topic":"MONTH 7 REVIEW + CAPSTONE PROJECT","Tasks":"Consolidate Month 7; finalize the IoT firmware-update capstone.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Complete 'IoT-enabled Firmware Update System' (STM32 bootloader + ESP32 MQTT reporting); push to GitHub with a demo video link.","Hours":4}]},{"num":8,"title":"Phase 8 (Month 8): Capstone Projects, Portfolio & Job Readiness","short":"Capstones & Job Readiness","goal":"Build two strong, distinct capstone projects, create a professional portfolio and resume, master interview topics, and run a structured job-application sprint.","project":"Two Capstone Projects (choose distinct domains, e.g., Smart Home Automation + Automotive/Industrial Monitor) + a live GitHub Pages portfolio + a polished resume + 20+ active job applications with a tracked pipeline.","days":[{"Day":1,"Week":1,"Topic":"Capstone Planning","Tasks":"Choose 2 distinct-domain capstone project ideas; write requirement docs, block diagrams, and BOM (bill of materials).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Embedded.com Articles","Other_Link":"https://www.embedded.com/","Practice":"Finalize project scope docs for both capstones with a feature list and success criteria.","Hours":3},{"Day":2,"Week":1,"Topic":"Capstone 1 - Hardware Bring-up","Tasks":"Assemble/simulate hardware for Capstone Project 1 (e.g., Smart Home Automation).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Wokwi Online Simulator (Arduino/ESP32/STM32)","Other_Link":"https://wokwi.com/","Practice":"Wire up and power-on-test all hardware modules for Capstone 1.","Hours":4},{"Day":3,"Week":1,"Topic":"Capstone 1 - Core Firmware","Tasks":"Write core firmware: peripheral drivers, sensor reading, actuator control.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Implement and test the core control logic of Capstone 1 module by module.","Hours":4},{"Day":4,"Week":1,"Topic":"Capstone 1 - Connectivity Layer","Tasks":"Add UART/Wi-Fi/BLE layer for remote monitoring or control.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"HiveMQ - MQTT Essentials","Other_Link":"https://www.hivemq.com/mqtt-essentials/","Practice":"Integrate connectivity (app/MQTT/web) into Capstone 1 and verify end-to-end data flow.","Hours":4},{"Day":5,"Week":1,"Topic":"Capstone 1 - RTOS/Robustness","Tasks":"Add FreeRTOS task structure and watchdog/error-handling for reliability.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Refactor Capstone 1 into RTOS tasks with a watchdog for fault recovery.","Hours":4},{"Day":6,"Week":1,"Topic":"Capstone 1 - Polish","Tasks":"UI polish (LCD/app), edge-case handling, code cleanup.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Cppcheck Static Analysis Docs","Other_Link":"https://cppcheck.sourceforge.io/","Practice":"Run static analysis on Capstone 1, fix warnings, and polish the user-facing behaviour.","Hours":3},{"Day":7,"Week":1,"Topic":"Capstone 1 - Testing & Debugging","Tasks":"End-to-end testing under real conditions; fix bugs found; document known limitations.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Run a full test pass on Capstone 1 covering normal operation, edge cases, and failure recovery.","Hours":3},{"Day":8,"Week":2,"Topic":"Capstone 2 - Planning & Bring-up","Tasks":"Start second capstone in a different domain (e.g., automotive CAN-based system, medical vitals monitor, or robotics).","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"CAN Bus / CiA Learn Resources","Other_Link":"https://www.can-cia.org/can-knowledge/","Practice":"Finalize architecture and assemble/simulate hardware for Capstone 2.","Hours":4},{"Day":9,"Week":2,"Topic":"Capstone 2 - Core Firmware","Tasks":"Implement drivers and core control logic for Capstone 2.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"ST Official STM32 Documentation","Other_Link":"https://www.st.com/en/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html","Practice":"Get Capstone 2's core sensing/actuation logic working end-to-end.","Hours":4},{"Day":10,"Week":2,"Topic":"Capstone 2 - Communication Protocols","Tasks":"Integrate the relevant protocol stack (CAN/SPI/I2C) central to this project's domain.","YT_Name":"Phil's Lab (STM32/PCB/Firmware)","YT_Link":"https://www.youtube.com/phils94","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Implement and test the protocol layer critical to Capstone 2 (e.g., CAN messaging).","Hours":4},{"Day":11,"Week":2,"Topic":"Capstone 2 - RTOS Integration","Tasks":"Structure Capstone 2 firmware using FreeRTOS tasks/queues for maintainability.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"FreeRTOS Official Docs","Other_Link":"https://www.freertos.org/","Practice":"Refactor Capstone 2 into a clean multi-task RTOS architecture.","Hours":4},{"Day":12,"Week":2,"Topic":"Capstone 2 - Testing & Debugging","Tasks":"Full testing pass, bug fixing, and performance profiling.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"SEGGER J-Link/SystemView Docs","Other_Link":"https://www.segger.com/products/debug-probes/j-link/tools/j-link-plugins/","Practice":"Test Capstone 2 thoroughly and document any known issues/future improvements.","Hours":3},{"Day":13,"Week":2,"Topic":"Resume Building for Embedded Roles","Tasks":"Structuring an embedded/firmware resume: skills section, project bullets with impact/metrics, ATS-friendly formatting.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Novoresume - Free Resume Guide","Other_Link":"https://novoresume.com/career-blog/how-to-write-a-resume","Practice":"Draft a 1-page resume highlighting your 8 capstone/monthly projects with quantifiable impact statements.","Hours":3},{"Day":14,"Week":2,"Topic":"LinkedIn Profile Optimization","Tasks":"Headline, About section, featured projects, skills endorsements for embedded/firmware roles.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"LinkedIn Profile Optimization Guide","Other_Link":"https://www.linkedin.com/business/talent/blog/product-tips/tips-to-improve-your-linkedin-profile","Practice":"Fully update your LinkedIn profile with headline, about section, and all major projects listed.","Hours":2},{"Day":15,"Week":3,"Topic":"Portfolio Website","Tasks":"Build a simple portfolio site using GitHub Pages listing all 8 months of projects with descriptions/links.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Pages - Free Portfolio Hosting","Other_Link":"https://pages.github.com/","Practice":"Publish a live GitHub Pages portfolio site showcasing your top 6-8 projects with images/GIFs.","Hours":4},{"Day":16,"Week":3,"Topic":"Polish GitHub Repositories","Tasks":"Ensure every repo has a great README: overview, hardware used, wiring diagram, build steps, demo GIF/photo.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Rewrite README files for your top 5 repositories to professional portfolio quality.","Hours":3},{"Day":17,"Week":3,"Topic":"Interview Prep - Embedded C","Tasks":"Practice classic embedded-C interview questions: pointers, volatile, const, bit-fields, memory layout, structure padding.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"InterviewBit","Other_Link":"https://www.interviewbit.com/","Practice":"Answer (in writing) 20 classic embedded-C interview questions from memory, then verify against references.","Hours":3},{"Day":18,"Week":3,"Topic":"Interview Prep - DS & OS","Tasks":"Practice data structures and OS interview questions relevant to embedded roles (linked lists, queues, scheduling, semaphores).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Solve 10 medium DS problems + answer 10 OS/RTOS conceptual questions.","Hours":3},{"Day":19,"Week":3,"Topic":"Interview Prep - Electronics & Protocols","Tasks":"Practice digital electronics and communication protocol interview questions (UART/SPI/I2C/CAN differences, flip-flops, K-maps).","YT_Name":"Ben Eater (Digital Logic/Computer Architecture)","YT_Link":"https://www.youtube.com/@BenEater","Other_Name":"Electronics-Tutorials.ws","Other_Link":"https://www.electronics-tutorials.ws/","Practice":"Prepare written answers for 15 common digital-electronics and protocol interview questions.","Hours":3},{"Day":20,"Week":3,"Topic":"Mock Technical Interview","Tasks":"Simulate a full technical interview (record yourself or pair with a peer/mentor); review recording for clarity and gaps.","YT_Name":"Jacob Sorber (Low-level C & Embedded)","YT_Link":"https://www.youtube.com/@JacobSorber","Other_Name":"InterviewBit","Other_Link":"https://www.interviewbit.com/","Practice":"Complete one full 45-60 min mock technical interview and note 3 areas to improve.","Hours":3},{"Day":21,"Week":3,"Topic":"Revision of Weak Areas","Tasks":"Identify weakest topics from the mock interview and revisit those specific resources from earlier months.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GeeksforGeeks","Other_Link":"https://www.geeksforgeeks.org/","Practice":"Deep-revise your 3 weakest topics identified from Day 20's mock interview.","Hours":3},{"Day":22,"Week":4,"Topic":"Job Applications - Round 1","Tasks":"Search and apply to embedded/firmware roles on job portals and company career pages; tailor resume per role.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Novoresume - Free Resume Guide","Other_Link":"https://novoresume.com/career-blog/how-to-write-a-resume","Practice":"Apply to at least 10 relevant embedded/firmware job openings with a tailored resume/cover note each.","Hours":3},{"Day":23,"Week":4,"Topic":"Open-Source Contribution","Tasks":"Contribute a small fix/feature/doc improvement to an open-source embedded project (e.g., Zephyr, FreeRTOS-community examples).","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"Zephyr RTOS Documentation","Other_Link":"https://docs.zephyrproject.org/","Practice":"Find a 'good first issue' in an embedded open-source repo and submit a pull request.","Hours":3},{"Day":24,"Week":4,"Topic":"Technical Blog Post","Tasks":"Write and publish a technical blog post explaining one of your capstone projects in depth.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Dev.to Publishing Platform","Other_Link":"https://dev.to/","Practice":"Publish a detailed blog post (Dev.to/Hashnode/Medium) about your favourite capstone project.","Hours":3},{"Day":25,"Week":4,"Topic":"HR & Behavioral Interview Prep","Tasks":"Practice common behavioral questions (STAR method), 'tell me about yourself', teamwork/conflict examples from projects.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Novoresume - Free Resume Guide","Other_Link":"https://novoresume.com/career-blog/how-to-write-a-resume","Practice":"Prepare STAR-format answers for 8 common behavioral interview questions using your project experiences.","Hours":2},{"Day":26,"Week":4,"Topic":"Networking & Community Engagement","Tasks":"Engage with embedded communities (r/embedded, Discord servers, LinkedIn groups); reach out to engineers for informational chats.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"r/embedded Community","Other_Link":"https://www.reddit.com/r/embedded/","Practice":"Make 5 meaningful posts/comments in embedded communities and send 5 LinkedIn connection notes to embedded engineers.","Hours":2},{"Day":27,"Week":4,"Topic":"Final Resume/Portfolio Review + Applications","Tasks":"Get feedback on resume/portfolio (peer/mentor/online community); apply to another batch of roles.","YT_Name":"NetworkChuck (Linux/Networking)","YT_Link":"https://www.youtube.com/@NetworkChuck","Other_Name":"Novoresume - Free Resume Guide","Other_Link":"https://novoresume.com/career-blog/how-to-write-a-resume","Practice":"Incorporate feedback into your resume/portfolio; apply to 10 more job openings (20+ total this month).","Hours":3},{"Day":28,"Week":4,"Topic":"Reflect, Refine & Continue the Sprint","Tasks":"Review the full 8-month journey, update portfolio with latest project, keep the application/interview sprint going.","YT_Name":"Low Level Learning","YT_Link":"https://www.youtube.com/@LowLevelLearning","Other_Name":"GitHub Skills (Free Interactive Courses)","Other_Link":"https://skills.github.com/","Practice":"Write a personal '8-month embedded journey' reflection post/README and set a weekly job-search routine going forward.","Hours":3}]}],"showcase":[{"title":"1. Build a Professional GitHub Portfolio","items":[{"label":"Create one repo per project","detail":"Every monthly capstone + notable mini-project gets its own public repo with a clear, descriptive name (e.g., 'stm32-freertos-weather-station').","link_name":"GitHub Skills","link_url":"https://skills.github.com/"},{"label":"Write a portfolio-grade README per repo","detail":"Include: 1-2 line summary, hardware used, wiring diagram/schematic image, features, how to build/flash, demo photo or GIF, what you learned.","link_name":"Awesome README examples","link_url":"https://github.com/matiassingers/awesome-readme"},{"label":"Pin your best 6 repos","detail":"Pin projects that show breadth: a C/DS project, an AVR register-level project, an STM32/HAL project, an RTOS project, a protocol-heavy project, an IoT project.","link_name":"GitHub Profile Docs","link_url":"https://docs.github.com/en/account-and-profile"},{"label":"Add a GitHub profile README","detail":"Create the special 'username/username' repo with a profile README summarizing your embedded skills, tools and links to top projects.","link_name":"Profile README Guide","link_url":"https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme"},{"label":"Keep commit history clean & consistent","detail":"Commit regularly, not one giant commit; use clear messages like 'Add I2C sensor driver with retry logic' instead of 'update'.","link_name":"Conventional Commits","link_url":"https://www.conventionalcommits.org/"}]},{"title":"2. Build a Personal Portfolio Website (Free)","items":[{"label":"Publish a GitHub Pages site","detail":"Free hosting for a single-page portfolio: About, Skills, Projects (images/GIFs + GitHub links), Resume download, Contact.","link_name":"GitHub Pages","link_url":"https://pages.github.com/"},{"label":"Use a free template if short on time","detail":"Don't design from scratch under deadline - use a free portfolio template and customize the content.","link_name":"Free Jekyll Themes","link_url":"https://jekyllthemes.io/free"},{"label":"Add short demo videos/GIFs","detail":"A 15-30 second GIF of your project working is far more convincing than text alone.","link_name":"ScreenToGif (free tool)","link_url":"https://www.screentogif.com/"}]},{"title":"3. Optimize Your Resume","items":[{"label":"Use a clean, ATS-friendly 1-page format","detail":"Avoid heavy graphics/tables that break Applicant Tracking Systems. Sections: Summary, Skills, Projects, Education, Certifications.","link_name":"Resume Writing Guide","link_url":"https://novoresume.com/career-blog/how-to-write-a-resume"},{"label":"Write project bullets with impact, not tasks","detail":"Instead of 'Made a sensor project': 'Built an I2C environmental monitor on STM32 with FreeRTOS; cut CPU idle time 30% using interrupt-driven UART reporting.'","link_name":null,"link_url":null},{"label":"List concrete tools & protocols","detail":"C, Embedded C, AVR, ARM Cortex-M, STM32 HAL/CMSIS, FreeRTOS, UART/SPI/I2C/CAN, Git, Linux, Makefile/CMake, ST-Link, logic analyzer.","link_name":null,"link_url":null},{"label":"Quantify wherever possible","detail":"Memory footprint reduced, latency achieved, number of sensors integrated, lines of tests written, % test coverage.","link_name":null,"link_url":null}]},{"title":"4. LinkedIn & Professional Presence","items":[{"label":"Write a clear headline","detail":"e.g., 'Embedded Systems | Firmware Engineer | C, ARM Cortex-M, STM32, FreeRTOS | Actively Seeking Opportunities'.","link_name":"LinkedIn Profile Tips","link_url":"https://www.linkedin.com/business/talent/blog/product-tips/tips-to-improve-your-linkedin-profile"},{"label":"Add every capstone project to Featured","detail":"Link each project's GitHub repo and a short description + demo image directly on your profile.","link_name":null,"link_url":null},{"label":"Post about your build progress","detail":"Short posts ('Day 45: synced FreeRTOS tasks with a semaphore - here's what I learned about priority inversion') build a public trail of growth.","link_name":null,"link_url":null},{"label":"Follow & engage with embedded companies/engineers","detail":"Follow companies you'd like to work for and comment thoughtfully on embedded-related posts.","link_name":null,"link_url":null}]},{"title":"5. Demonstrate Depth Beyond Projects","items":[{"label":"Write technical blog posts","detail":"Explain how you debugged a tricky I2C issue or designed your RTOS task architecture - this proves understanding, not copy-paste.","link_name":"Dev.to (free publishing)","link_url":"https://dev.to/"},{"label":"Contribute to open source","detail":"Submit small PRs (docs, examples, bug fixes) to projects like Zephyr RTOS - real collaboration experience employers value highly.","link_name":"Zephyr Good First Issues","link_url":"https://github.com/zephyrproject-rtos/zephyr/contribute"},{"label":"Participate in embedded communities","detail":"Answer beginner questions on r/embedded or Stack Overflow's embedded tag - teaching cements your own knowledge.","link_name":"r/embedded","link_url":"https://www.reddit.com/r/embedded/"},{"label":"Get a recognized certificate (optional)","detail":"Consider free-audit courses that carry a recognizable name to add to LinkedIn certifications.","link_name":"Coursera - Free Audit","link_url":"https://www.coursera.org/"}]},{"title":"6. Interview Preparation Checklist","items":[{"label":"Master core C & memory concepts","detail":"Pointers, pointer arithmetic, structure padding/alignment, volatile, const, static, memory leaks, stack vs heap.","link_name":"InterviewBit - Embedded C","link_url":"https://www.interviewbit.com/"},{"label":"Know your protocols cold","detail":"Be ready to draw UART/SPI/I2C timing diagrams from memory and explain trade-offs (speed, pin count, multi-device support).","link_name":"Electronics-Tutorials.ws","link_url":"https://www.electronics-tutorials.ws/"},{"label":"Practice RTOS scenario questions","detail":"'How would you design tasks for a system with a sensor, display and network module?' - reference your own capstones as real examples.","link_name":"FreeRTOS Docs","link_url":"https://www.freertos.org/"},{"label":"Be ready to whiteboard a state machine or ISR","detail":"Interviewers love asking for a live sketch of an ISR-safe producer/consumer design or a debounce state machine.","link_name":null,"link_url":null},{"label":"Prepare 3-4 project deep-dive stories (STAR)","detail":"Situation/Task, Action, Result - use your capstone projects as the backbone of these stories.","link_name":"STAR Method Guide","link_url":"https://novoresume.com/career-blog/how-to-write-a-resume"},{"label":"Practice on coding platforms","detail":"Keep basic DSA sharp alongside embedded-specific prep - many companies still ask general coding questions.","link_name":"LeetCode","link_url":"https://leetcode.com/"}]},{"title":"7. Job Search Strategy","items":[{"label":"Target the right roles/titles","detail":"Search: 'Embedded Software Engineer', 'Firmware Engineer', 'Embedded Systems Engineer - Entry Level', 'Embedded C Developer'.","link_name":null,"link_url":null},{"label":"Use multiple channels","detail":"Job portals + company career pages + referrals via LinkedIn connections + campus placement cells + embedded-focused job boards.","link_name":null,"link_url":null},{"label":"Track applications in a simple sheet","detail":"Company, Role, Date Applied, Status, Follow-up Date, Contact - don't lose track after 20+ applications.","link_name":null,"link_url":null},{"label":"Follow up politely after 1-2 weeks","detail":"A short, polite follow-up message to a recruiter or hiring manager meaningfully increases response rates.","link_name":null,"link_url":null},{"label":"Apply to internships/trainee programs too","detail":"Many strong embedded careers start via an internship or graduate-trainee program that converts to full-time.","link_name":null,"link_url":null}]}]};
+</script>
+<script>
+(function(){
+  "use strict";
+
+  const state = { done: {}, activeView: "overview", theme: "light" };
+
+  /* ---------------- Persistent storage (localStorage, with safe fallback) ----------------
+     This page may run inside Claude.ai's sandboxed artifact preview (where localStorage
+     throws) OR as a normally-hosted site, e.g. on GitHub Pages (where it works fine).
+     Every read/write is wrapped in try/catch so the app degrades to in-memory + manual
+     export/import if storage isn't available, instead of breaking. */
+  const STORAGE_KEY = "embeddedRoadmapProgress_v1";
+  let canPersist = false;
+  try{
+    const testKey = "__storage_test__" + Date.now();
+    window.localStorage.setItem(testKey, "1");
+    window.localStorage.removeItem(testKey);
+    canPersist = true;
+  }catch(e){ canPersist = false; }
+
+  function loadStoredProgress(){
+    if(!canPersist) return null;
+    try{
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if(!raw) return null;
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed.done === "object") ? parsed.done : null;
+    }catch(e){ return null; }
+  }
+
+  function saveStoredProgress(){
+    if(!canPersist) return;
+    try{
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ done: state.done, savedAt: new Date().toISOString() }));
+    }catch(e){ /* storage full or blocked mid-session — silently keep working in-memory */ }
+  }
+
+  (function preloadStoredProgress(){
+    const stored = loadStoredProgress();
+    if(stored) state.done = stored;
+  })();
+
+  const viewRoot = document.getElementById("viewRoot");
+  const navList = document.getElementById("navList");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
+
+  function dayKey(phaseNum, day){ return "p"+phaseNum+"d"+day; }
+  function pad2(n){ return String(n).padStart(2,"0"); }
+
+  function iconYT(){
+    return '<svg viewBox="0 0 24 24" fill="none"><path d="M21.6 7.2s-.2-1.5-.8-2.1c-.8-.8-1.7-.8-2.1-.9C15.9 4 12 4 12 4h0s-3.9 0-6.7.2c-.4 0-1.3.1-2.1.9-.6.6-.8 2.1-.8 2.1S2.2 9 2.2 10.7v1.6C2.2 14 2.4 15.5 2.4 15.5s.2 1.5.8 2.1c.8.8 1.9.8 2.3.9C7.2 18.6 12 18.7 12 18.7s3.9 0 6.7-.3c.4 0 1.3-.1 2.1-.9.6-.6.8-2.1.8-2.1s.2-1.5.2-3.1v-1.6c0-1.7-.2-3.5-.2-3.5zM9.9 13.9V8.6l5.4 2.7-5.4 2.6z" fill="currentColor"/></svg>';
+  }
+  function iconDoc(){
+    return '<svg viewBox="0 0 24 24" fill="none"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v5h5" stroke="currentColor" stroke-width="1.6"/></svg>';
+  }
+  function iconArrow(){
+    return '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function iconChevron(){
+    return '<svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function iconCheck(){
+    return '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  function escAttr(s){ return String(s).replace(/"/g,'&quot;'); }
+
+  /* ---------------- Theme ---------------- */
+  function applyTheme(theme){
+    state.theme = theme;
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+  function toggleTheme(){ applyTheme(state.theme === "dark" ? "light" : "dark"); }
+
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(prefersDark ? "dark" : "light");
+
+  /* ---------------- Sidebar nav ---------------- */
+  function renderNav(){
+    let html = '<a class="nav-item" data-route="overview" href="#overview"><span class="nav-num">&#9670;</span><span class="nav-label">Overview</span></a>';
+    html += '<div class="nav-section-label">Phases</div>';
+    DATA.phases.forEach(p=>{
+      const total = p.days.length;
+      const done = p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length;
+      html += `<a class="nav-item" data-route="phase-${p.num}" href="#phase-${p.num}">
+        <span class="nav-num">${pad2(p.num)}</span>
+        <span class="nav-label">${p.short}</span>
+        <span class="nav-progress" data-progress-for="${p.num}">${done}/${total}</span>
+      </a>`;
+    });
+    html += '<div class="nav-section-label">After Month 8</div>';
+    html += '<a class="nav-item" data-route="showcase" href="#showcase"><span class="nav-num">&#9670;</span><span class="nav-label">Showcase &amp; Job Prep</span></a>';
+    navList.innerHTML = html;
+    navList.querySelectorAll(".nav-item").forEach(el=>{
+      el.addEventListener("click", ()=>{ closeSidebarMobile(); });
+    });
+  }
+
+  function setActiveNav(route){
+    navList.querySelectorAll(".nav-item").forEach(el=>{
+      el.classList.toggle("active", el.dataset.route===route);
+    });
+  }
+
+  function updateNavProgress(){
+    DATA.phases.forEach(p=>{
+      const total = p.days.length;
+      const done = p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length;
+      const span = navList.querySelector(`.nav-progress[data-progress-for="${p.num}"]`);
+      if(span) span.textContent = done+"/"+total;
+    });
+  }
+
+  /* ---------------- Overview view ---------------- */
+  function renderOverview(){
+    const totalDays = DATA.phases.reduce((s,p)=>s+p.days.length,0);
+    const totalDone = DATA.phases.reduce((s,p)=>s+p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length,0);
+    const totalResources = totalDays*2;
+    const pct = totalDays ? Math.round((totalDone/totalDays)*100) : 0;
+
+    let phaseTiles = "";
+    DATA.phases.forEach(p=>{
+      phaseTiles += `<div class="phase-tile" data-route="phase-${p.num}" tabindex="0" role="button" aria-label="Open ${escAttr(p.short)}">
+        <div class="pt-num">PHASE ${pad2(p.num)} — MONTH ${p.num}</div>
+        <div class="pt-title">${p.short}</div>
+        <div class="pt-meta">${p.days.length} days · capstone project</div>
+      </div>`;
+    });
+
+    const skills = [
+      "Strong C programming — pointers, memory management, structures, file I/O",
+      "Data structures fundamentals for firmware — lists, stacks, queues, trees",
+      "Digital &amp; analog electronics — gates, K-maps, flip-flops, breadboarding",
+      "Register-level AVR &amp; ARM Cortex-M/STM32 programming, plus HAL/CubeMX",
+      "UART, SPI, I2C, CAN — theory and hands-on driver writing",
+      "RTOS with FreeRTOS — tasks, queues, semaphores, mutexes, memory management",
+      "Embedded Linux basics, simple kernel/character device drivers",
+      "Bootloaders, Makefiles/CMake, Git workflow, unit testing, CI basics",
+      "Wireless/IoT with ESP32 — Wi-Fi, BLE, MQTT and cloud dashboards",
+      "A professional GitHub portfolio, resume, and interview-ready knowledge",
+    ];
+
+    viewRoot.insertAdjacentHTML("beforeend", `
+    <div class="view hidden" id="view-overview">
+      <div class="hero">
+        <div class="hero-eyebrow"><span class="dot"></span>ZERO TO FRESHER-JOB-READY · SELF-PACED</div>
+        <h1>Embedded Systems &amp; Firmware Engineering, built one working circuit at a time.</h1>
+        <p class="lead">An 8-month, day-by-day study plan — from your first "Hello World" in C to register-level ARM firmware, RTOS task design, and a portfolio that gets interviews. Every day links one video and one written resource, both free.</p>
+
+        <div class="spec-table">
+          <div class="spec-title">Program Specifications</div>
+          <div class="spec-grid">
+            <div class="spec-cell"><div class="spec-val">8<span class="spec-unit">mo</span></div><div class="spec-label">Total duration</div></div>
+            <div class="spec-cell"><div class="spec-val">${totalDays}<span class="spec-unit">days</span></div><div class="spec-label">Study days planned</div></div>
+            <div class="spec-cell"><div class="spec-val">${totalResources}<span class="spec-unit">links</span></div><div class="spec-label">Curated free resources</div></div>
+            <div class="spec-cell"><div class="spec-val">9<span class="spec-unit">builds</span></div><div class="spec-label">Hands-on capstone projects</div></div>
+            <div class="spec-cell"><div class="spec-val">2.5–4<span class="spec-unit">hr/day</span></div><div class="spec-label">Recommended pace</div></div>
+          </div>
+        </div>
+
+        <div class="progress-wrap">
+          <div class="progress-bar-track"><div class="progress-bar-fill" id="overallFill" style="width:${pct}%"></div></div>
+          <div class="progress-text" id="overallText">${totalDone} / ${totalDays} days logged (${pct}%)</div>
+        </div>
+      </div>
+
+      <div class="section-head"><h2>The 8 phases</h2><span class="sh-note">click a phase to open its day-by-day plan</span></div>
+      <div class="phase-grid">${phaseTiles}</div>
+
+      <div class="section-head"><h2>What you'll be able to do after Month 8</h2></div>
+      <div class="skill-list">
+        ${skills.map(s=>`<div class="skill-item">${iconCheck()}<span>${s}</span></div>`).join("")}
+      </div>
+
+      <div class="section-head"><h2>How this roadmap works</h2></div>
+      <div class="skill-list" style="grid-template-columns:1fr;max-width:760px;">
+        <div class="skill-item">${iconCheck()}<span>Each phase sheet covers one month, Day 1–28: roughly six study days plus one revision day per week, tagged <b>REVIEW</b>.</span></div>
+        <div class="skill-item">${iconCheck()}<span>Every day lists a topic, detailed tasks, one YouTube resource, one other free resource, a hands-on practice task, and an hour estimate.</span></div>
+        <div class="skill-item">${iconCheck()}<span>Follow days in order within a phase — later topics assume earlier ones. Tick days off as you finish them; your progress shows in the sidebar, phase pages, and this overview.</span></div>
+        <div class="skill-item">${iconCheck()}<span>Progress lives in this browser tab only. Use <b>Export</b> in the sidebar to save it as a small file, and <b>Import</b> to restore it in a future session.</span></div>
+        <div class="skill-item">${iconCheck()}<span>Each phase closes with a capstone project — build it fully before moving on. It becomes a portfolio piece.</span></div>
+        <div class="skill-item">${iconCheck()}<span>The <b>Showcase &amp; Job Prep</b> section explains exactly how to present all of this to employers.</span></div>
+      </div>
+    </div>`);
+  }
+
+  /* ---------------- Phase view ---------------- */
+  function renderPhase(p){
+    const weeks = {};
+    p.days.forEach(d=>{ (weeks[d.Week] = weeks[d.Week]||[]).push(d); });
+
+    let weekHtml = "";
+    Object.keys(weeks).sort((a,b)=>a-b).forEach(wk=>{
+      let rows = "";
+      weeks[wk].forEach(d=>{
+        const key = dayKey(p.num, d.Day);
+        const isRevision = d.Day % 7 === 0;
+        const checked = state.done[key] ? "checked" : "";
+        rows += `
+        <div class="day-row ${isRevision?'revision':''}" data-key="${key}">
+          <div class="day-head" tabindex="0" role="button" aria-expanded="false">
+            <span class="day-badge">D${pad2(d.Day)}</span>
+            <span class="day-week-tag">WK ${d.Week}</span>
+            <span class="day-topic">${d.Topic}</span>
+            ${isRevision?'<span class="day-review-tag">REVIEW</span>':''}
+            <span class="day-hours">${d.Hours}h</span>
+            <label class="day-check" title="Mark this day done">
+              <input type="checkbox" ${checked} data-key="${key}" aria-label="Mark Day ${d.Day}, ${escAttr(d.Topic)}, as done">
+            </label>
+            <span class="day-chevron">${iconChevron()}</span>
+          </div>
+          <div class="day-body">
+            <div class="day-tasks">${d.Tasks}</div>
+            <div class="res-row">
+              <a class="res-pill" href="${d.YT_Link}" target="_blank" rel="noopener">${iconYT()}<span><span class="res-kind">YouTube&nbsp;</span>${d.YT_Name}</span></a>
+              <a class="res-pill" href="${d.Other_Link}" target="_blank" rel="noopener">${iconDoc()}<span><span class="res-kind">Read&nbsp;</span>${d.Other_Name}</span></a>
+            </div>
+            <div class="practice-box"><b>Hands-on practice —</b> ${d.Practice}</div>
+          </div>
+        </div>`;
+      });
+      weekHtml += `<div class="week-block"><div class="week-label">Week ${wk}</div>${rows}</div>`;
+    });
+
+    const idx = p.num - 1;
+    const prev = DATA.phases[idx-1];
+    const next = DATA.phases[idx+1];
+    let navHtml = '<div class="phase-nav">';
+    navHtml += prev ? `<a class="pn-btn prev" href="#phase-${prev.num}" data-route="phase-${prev.num}"><span class="pn-dir">&larr; PREVIOUS</span><span class="pn-name">${prev.short}</span></a>` : '<span></span>';
+    navHtml += next ? `<a class="pn-btn next" href="#phase-${next.num}" data-route="phase-${next.num}"><span class="pn-dir">NEXT &rarr;</span><span class="pn-name">${next.short}</span></a>` : `<a class="pn-btn next" href="#showcase" data-route="showcase"><span class="pn-dir">NEXT &rarr;</span><span class="pn-name">Showcase &amp; Job Prep</span></a>`;
+    navHtml += '</div>';
+
+    const total = p.days.length;
+    const done = p.days.filter(dd=>state.done[dayKey(p.num,dd.Day)]).length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+
+    viewRoot.insertAdjacentHTML("beforeend", `
+    <div class="view hidden" id="view-phase-${p.num}">
+      <div class="phase-head">
+        <div class="ph-tag">PHASE ${pad2(p.num)} · MONTH ${p.num} OF 8</div>
+        <h1>${p.title}</h1>
+        <p class="ph-goal">${p.goal}</p>
+      </div>
+      <div class="phase-progress">
+        <div class="pp-track"><div class="pp-fill" id="phaseFill-${p.num}" style="width:${pct}%"></div></div>
+        <div class="pp-text" id="phaseText-${p.num}">${done} / ${total} days logged (${pct}%)</div>
+      </div>
+      <div class="capstone-box">
+        <div class="cb-label">Phase capstone project</div>
+        <div class="cb-text">${p.project}</div>
+      </div>
+      ${weekHtml}
+      ${navHtml}
+    </div>`);
+  }
+
+  /* ---------------- Showcase view ---------------- */
+  function renderShowcase(){
+    let blocks = "";
+    DATA.showcase.forEach(sec=>{
+      let items = "";
+      sec.items.forEach((it,i)=>{
+        items += `<div class="sc-item">
+          <div class="sc-idx">${pad2(i+1)}</div>
+          <div class="sc-body">
+            <div class="sc-label">${it.label}</div>
+            <div class="sc-detail">${it.detail}</div>
+            ${it.link_name?`<a class="sc-link" href="${it.link_url}" target="_blank" rel="noopener">${it.link_name}${iconArrow()}</a>`:''}
+          </div>
+        </div>`;
+      });
+      blocks += `<div class="sc-block"><h3>${sec.title}</h3>${items}</div>`;
+    });
+
+    viewRoot.insertAdjacentHTML("beforeend", `
+    <div class="view hidden" id="view-showcase">
+      <div class="phase-head">
+        <div class="ph-tag">AFTER MONTH 8</div>
+        <h1>How to showcase your skills</h1>
+        <p class="ph-goal">A great firmware engineer with no proof of skill loses to an average one with a visible portfolio. Work through this checklist during Month 8 — and keep it running afterward.</p>
+      </div>
+      ${blocks}
+      <div class="phase-nav">
+        <a class="pn-btn prev" href="#phase-8" data-route="phase-8"><span class="pn-dir">&larr; PREVIOUS</span><span class="pn-name">Capstones &amp; Job Readiness</span></a>
+        <a class="pn-btn next" href="#overview" data-route="overview"><span class="pn-dir">&uarr; BACK TO</span><span class="pn-name">Overview</span></a>
+      </div>
+    </div>`);
+  }
+
+  /* ---------------- Build + wire up ---------------- */
+  function navigateTo(route){
+    if(location.hash.replace("#","") === route){ showRoute(route); }
+    else { location.hash = route; }
+  }
+
+  function buildAllViews(){
+    renderOverview();
+    DATA.phases.forEach(renderPhase);
+    renderShowcase();
+
+    viewRoot.querySelectorAll(".day-head").forEach(h=>{
+      const toggle = ()=>{
+        const row = h.closest(".day-row");
+        const open = row.classList.toggle("open");
+        h.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+      h.addEventListener("click", toggle);
+      h.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); }
+      });
+    });
+
+    viewRoot.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        state.done[cb.dataset.key] = cb.checked;
+        const ph = keyPhase(cb.dataset.key);
+        updateNavProgress();
+        refreshOverviewProgress();
+        if(ph) refreshPhaseProgress(ph);
+        refreshFootCount();
+        saveStoredProgress();
+      });
+      cb.addEventListener("click", (e)=>e.stopPropagation());
+    });
+
+    viewRoot.querySelectorAll(".phase-tile").forEach(el=>{
+      el.addEventListener("click", ()=>navigateTo(el.dataset.route));
+      el.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); navigateTo(el.dataset.route); }
+      });
+    });
+  }
+
+  function refreshOverviewProgress(){
+    const totalDays = DATA.phases.reduce((s,p)=>s+p.days.length,0);
+    const totalDone = DATA.phases.reduce((s,p)=>s+p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length,0);
+    const pct = totalDays ? Math.round((totalDone/totalDays)*100) : 0;
+    const fill = document.getElementById("overallFill");
+    const text = document.getElementById("overallText");
+    if(fill) fill.style.width = pct+"%";
+    if(text) text.textContent = `${totalDone} / ${totalDays} days logged (${pct}%)`;
+  }
+
+  function keyPhase(key){
+    const m = /^p(\d+)d\d+$/.exec(key);
+    return m ? parseInt(m[1],10) : null;
+  }
+
+  function refreshPhaseProgress(phaseNum){
+    const p = DATA.phases.find(pp=>pp.num===phaseNum);
+    if(!p) return;
+    const total = p.days.length;
+    const done = p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length;
+    const pct = total ? Math.round((done/total)*100) : 0;
+    const fill = document.getElementById("phaseFill-"+phaseNum);
+    const text = document.getElementById("phaseText-"+phaseNum);
+    if(fill) fill.style.width = pct+"%";
+    if(text) text.textContent = `${done} / ${total} days logged (${pct}%)`;
+  }
+
+  function refreshFootCount(){
+    const totalDone = DATA.phases.reduce((s,p)=>s+p.days.filter(d=>state.done[dayKey(p.num,d.Day)]).length,0);
+    const el = document.getElementById("footDoneCount");
+    if(el) el.textContent = totalDone;
+  }
+
+  function refreshAllProgress(){
+    updateNavProgress();
+    refreshOverviewProgress();
+    DATA.phases.forEach(p=>refreshPhaseProgress(p.num));
+    refreshFootCount();
+  }
+
+  function showRoute(route){
+    if(!route || !document.getElementById("view-"+route)) route = "overview";
+    state.activeView = route;
+    document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
+    document.getElementById("view-"+route).classList.remove("hidden");
+    setActiveNav(route);
+    window.scrollTo(0,0);
+  }
+
+  window.addEventListener("hashchange", ()=>{
+    showRoute(location.hash.replace("#",""));
+  });
+
+  /* ---------------- Search ---------------- */
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  let searchHighlight = -1;
+
+  function highlightItem(idx){
+    const items = searchResults.querySelectorAll(".sr-item");
+    items.forEach((it,i)=>it.classList.toggle("highlighted", i===idx));
+    if(items[idx]) items[idx].scrollIntoView({block:"nearest"});
+  }
+
+  function runSearch(q){
+    q = q.trim().toLowerCase();
+    searchHighlight = -1;
+    if(q.length < 2){ searchResults.classList.remove("show"); searchResults.innerHTML=""; return; }
+    let matches = [];
+    DATA.phases.forEach(p=>{
+      p.days.forEach(d=>{
+        const hay = (d.Topic+' '+d.Tasks+' '+d.Practice+' '+d.YT_Name+' '+d.Other_Name).toLowerCase();
+        if(hay.indexOf(q) !== -1){
+          matches.push({phase:p.num, phaseShort:p.short, day:d.Day, topic:d.Topic});
+        }
+      });
+    });
+    if(matches.length === 0){
+      searchResults.innerHTML = '<div class="search-empty">No matches. Try another term.</div>';
+    } else {
+      searchResults.innerHTML = matches.slice(0,10).map(m=>
+        `<div class="sr-item" role="option" data-phase="${m.phase}" data-day="${m.day}">
+          <div class="sr-tag">PHASE ${pad2(m.phase)} · DAY ${pad2(m.day)} · ${m.phaseShort}</div>
+          <div class="sr-title">${m.topic}</div>
+        </div>`
+      ).join("");
+    }
+    searchResults.classList.add("show");
+  }
+
+  function goToSearchResult(item){
+    if(!item) return;
+    const phase = item.dataset.phase, day = item.dataset.day;
+    navigateTo("phase-"+phase);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const row = document.querySelector(`#view-phase-${phase} .day-row[data-key="p${phase}d${day}"]`);
+      if(row){
+        row.classList.add("open");
+        row.querySelector(".day-head").setAttribute("aria-expanded","true");
+        row.scrollIntoView({behavior:"smooth", block:"center"});
+        row.style.outline = "2px solid var(--pcb)";
+        row.style.outlineOffset = "-2px";
+        setTimeout(()=>{ row.style.outline=""; row.style.outlineOffset=""; }, 1600);
+      }
+    }));
+    searchResults.classList.remove("show");
+    searchInput.value = "";
+    closeSidebarMobile();
+  }
+
+  searchInput.addEventListener("input", (e)=>runSearch(e.target.value));
+  searchInput.addEventListener("focus", (e)=>{ if(e.target.value.trim().length>=2) searchResults.classList.add("show"); });
+  searchInput.addEventListener("keydown", (e)=>{
+    const items = searchResults.querySelectorAll(".sr-item");
+    if(e.key === "Escape"){ searchResults.classList.remove("show"); searchInput.blur(); return; }
+    if(!items.length) return;
+    if(e.key === "ArrowDown"){ e.preventDefault(); searchHighlight = (searchHighlight+1) % items.length; highlightItem(searchHighlight); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); searchHighlight = (searchHighlight-1+items.length) % items.length; highlightItem(searchHighlight); }
+    else if(e.key === "Enter"){ e.preventDefault(); goToSearchResult(items[searchHighlight >= 0 ? searchHighlight : 0]); }
+  });
+  document.addEventListener("click",(e)=>{
+    if(!searchResults.contains(e.target) && e.target !== searchInput){ searchResults.classList.remove("show"); }
+  });
+  searchResults.addEventListener("click",(e)=>{
+    goToSearchResult(e.target.closest(".sr-item"));
+  });
+
+  /* ---------------- Toast ---------------- */
+  const toastEl = document.getElementById("toast");
+  let toastTimer = null;
+  function showToast(msg, isError){
+    toastEl.textContent = msg;
+    toastEl.classList.toggle("error", !!isError);
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>{ toastEl.classList.remove("show"); }, 3200);
+  }
+
+  /* ---------------- Export / Import progress ---------------- */
+  function exportProgress(){
+    const doneKeys = Object.keys(state.done).filter(k=>state.done[k]);
+    const payload = {
+      type: "embedded-roadmap-progress",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      totalDays: DATA.phases.reduce((s,p)=>s+p.days.length,0),
+      done: state.done,
+    };
+    try{
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "embedded-roadmap-progress.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 1000);
+      showToast(`Exported ${doneKeys.length} completed day${doneKeys.length===1?"":"s"} — save this file to restore progress later.`);
+    }catch(err){
+      showToast("Couldn't export progress in this browser.", true);
+    }
+  }
+
+  function importProgressFromFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      try{
+        const payload = JSON.parse(e.target.result);
+        const incoming = payload && typeof payload.done === "object" ? payload.done : null;
+        if(!incoming){ showToast("That file doesn't look like a progress export.", true); return; }
+        state.done = {};
+        Object.keys(incoming).forEach(k=>{ if(incoming[k]) state.done[k] = true; });
+        viewRoot.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb=>{
+          cb.checked = !!state.done[cb.dataset.key];
+        });
+        refreshAllProgress();
+        saveStoredProgress();
+        const n = Object.keys(state.done).length;
+        showToast(`Imported progress — ${n} day${n===1?"":"s"} marked done.`);
+      }catch(err){
+        showToast("Couldn't read that file as progress JSON.", true);
+      }
+    };
+    reader.onerror = ()=>showToast("Couldn't read that file.", true);
+    reader.readAsText(file);
+  }
+
+  document.getElementById("exportBtn").addEventListener("click", exportProgress);
+  const importFileInput = document.getElementById("importFile");
+  document.getElementById("importBtn").addEventListener("click", ()=>importFileInput.click());
+  importFileInput.addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    importProgressFromFile(file);
+    importFileInput.value = "";
+  });
+
+  /* ---------------- Reset progress ---------------- */
+  document.getElementById("resetBtn").addEventListener("click", ()=>{
+    if(!confirm("Clear all checked-off days? Export first if you want to keep a copy — this can't be undone.")) return;
+    state.done = {};
+    viewRoot.querySelectorAll('input[type="checkbox"][data-key]').forEach(cb=>{ cb.checked = false; });
+    refreshAllProgress();
+    saveStoredProgress();
+    showToast("Progress reset.");
+  });
+
+  /* ---------------- Theme toggle buttons ---------------- */
+  document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+  document.getElementById("themeToggleMobile").addEventListener("click", toggleTheme);
+
+  /* ---------------- Mobile sidebar ---------------- */
+  const menuBtn = document.getElementById("menuBtn");
+  function openSidebarMobile(){ sidebar.classList.add("open"); overlay.classList.add("show"); }
+  function closeSidebarMobile(){ sidebar.classList.remove("open"); overlay.classList.remove("show"); }
+  menuBtn.addEventListener("click", openSidebarMobile);
+  overlay.addEventListener("click", closeSidebarMobile);
+
+  /* ---------------- Init ---------------- */
+  renderNav();
+  buildAllViews();
+  refreshFootCount();
+  const persistNote = document.getElementById("persistNote");
+  if(persistNote){
+    persistNote.textContent = canPersist
+      ? "Progress autosaves in this browser. Export makes a backup you can move between devices."
+      : "This preview can't save progress in your browser — export it to keep a copy, import to restore it.";
+  }
+  showRoute(location.hash ? location.hash.replace("#","") : "overview");
+})();
+</script>
+</body>
+</html>
